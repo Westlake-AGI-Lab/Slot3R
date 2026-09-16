@@ -168,7 +168,12 @@ def resize_like_monst3r_no_crop(image, depth, intrinsics, long_edge_size: int):
 
 
 def load_bonn_scene(args, scene: str):
-    root = Path(args.bonn_root) / f"rgbd_bonn_{scene}"
+    # Accept both the short protocol name (``balloon2``) and the on-disk
+    # directory name (``rgbd_bonn_balloon2``).  This makes SCENES usable with
+    # names copied directly from the dataset directory without duplicating the
+    # prefix.
+    scene_dir = scene if scene.startswith("rgbd_bonn_") else f"rgbd_bonn_{scene}"
+    root = Path(args.bonn_root) / scene_dir
     rgb_dir = root / "rgb_110"
     depth_dir = root / "depth_110"
     pose_path = root / "groundtruth_110.txt"
