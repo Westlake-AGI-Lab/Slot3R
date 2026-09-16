@@ -13,3 +13,7 @@
 *.jpeg binary
 *.gif binary
 *.ipynb text eol=lf
+
+# Preserve the exact evaluated source bytes recorded by the experiment logs.
+src/dust3r/point3r_kway_frame_sparse_q35_confselect.py -text
+src/dust3r/point3r_kway_frame_sparse_q35_confselect_rayaware_v82e_balanced_predecoder_pose.py -text
