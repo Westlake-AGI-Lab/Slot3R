@@ -13,20 +13,29 @@ export PYTHONPATH="$REPO:$REPO/src:$REPO/src/croco${PYTHONPATH:+:$PYTHONPATH}"
 source "$SCRIPT_DIR/common_env.sh"
 mkdir -p "$OUTPUT_DIR"
 
+if [[ -n "${SCENES:-}" ]]; then
+  read -r -a scenes <<< "$SCENES"
+  scene_args=(--scenes "${scenes[@]}")
+else
+  scene_args=()
+fi
+
 case "$DATASET" in
   bonn)
     "$PYTHON_BIN" -u -B "$SCRIPT_DIR/depth_bonn.py" \
       --model depthcc --bonn_root "$DATA_ROOT" --output_dir "$OUTPUT_DIR" \
       --point3r_repo "$REPO" --point3r_weights "$WEIGHTS" \
       --size 512 --kf_every "${KF_EVERY:-1}" --max_frames "${MAX_FRAMES:-0}" \
-      --sparse_max_tokens 640 --sparse_global_anchors 128 --drop_quantile 0.25
+      --sparse_max_tokens 640 --sparse_global_anchors 128 --drop_quantile 0.25 \
+      "${scene_args[@]}"
     ;;
   scannet)
     "$PYTHON_BIN" -u -B "$SCRIPT_DIR/depth_scannet.py" \
       --model depthcc --scannet_root "$DATA_ROOT" --output_dir "$OUTPUT_DIR" \
       --point3r_repo "$REPO" --point3r_weights "$WEIGHTS" \
       --size 512 --kf_every "${KF_EVERY:-1}" --max_frames "${MAX_FRAMES:-0}" \
-      --sparse_max_tokens 640 --sparse_global_anchors 128 --drop_quantile 0.25
+      --sparse_max_tokens 640 --sparse_global_anchors 128 --drop_quantile 0.25 \
+      "${scene_args[@]}"
     ;;
   kitti)
     # KITTI paths follow eval/video_depth/metadata.py. DATA_ROOT is exported for
