@@ -29,7 +29,7 @@ import numpy as np
 import torch
 
 
-MODELS = ("point3r", "kway", "sparse512", "geoanchor", "ghost", "cut3r", "ttt3r")
+MODELS = ('point3r', 'ghost', 'cut3r', 'ttt3r')
 SCENES = (
     "breakfast_room",
     "complete_kitchen",
@@ -289,11 +289,14 @@ def center_crop(arr: np.ndarray, crop: int) -> np.ndarray:
     return arr[cy - r : cy + r, cx - r : cx + r]
 
 
-def maybe_subsample(points: np.ndarray, max_points: int, seed: int) -> np.ndarray:
-    if max_points <= 0 or len(points) <= max_points:
-        return points
-    rng = np.random.default_rng(seed)
-    return points[rng.choice(len(points), max_points, replace=False)]
+def subsample_correspondences(pred, gt, color, max_points: int, seed: int):
+    """Keep the same RGB/depth correspondences as the original table protocol."""
+    if not len(pred) == len(gt) == len(color):
+        raise ValueError("point-cloud sampling requires paired prediction/GT/color arrays")
+    if max_points <= 0 or len(pred) <= max_points:
+        return pred, gt, color
+    indices = np.random.default_rng(seed).choice(len(pred), max_points, replace=False)
+    return pred[indices], gt[indices], color[indices]
 
 
 def compute_open3d_metrics(pts_all, pts_gt_all, masks_all, images_all, args) -> dict[str, float]:
@@ -336,10 +339,9 @@ def compute_open3d_metrics(pts_all, pts_gt_all, masks_all, images_all, args) -> 
             "NC2_med": float("nan"),
         }
 
-    pred = maybe_subsample(pred, args.max_points, args.seed)
-    gt = maybe_subsample(gt, args.max_points, args.seed + 1)
-    if len(color) != len(pred):
-        color = np.ones_like(pred)
+    pred, gt, color = subsample_correspondences(
+        pred, gt, color, args.max_points, args.seed
+    )
 
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(pred)
@@ -426,66 +428,6 @@ def collect_metric_arrays(batch, preds, args):
     )
 
 
-def save_scene_pointclouds(
-    pts_all, pts_gt_all, masks_all, images_all, args, model_name: str, scene: str
-) -> None:
-    """Save a reproducibly sampled prediction/GT PLY pair for one scene."""
-    if not args.save_ply:
-        return
-
-    force_point3r_metric_imports(args.point3r_repo)
-    import open3d as o3d
-
-    pred_chunks = []
-    gt_chunks = []
-    color_chunks = []
-    for pts, gt, mask, image in zip(pts_all, pts_gt_all, masks_all, images_all):
-        keep = mask > 0
-        pred_chunks.append(pts[keep])
-        gt_chunks.append(gt[keep])
-        color_chunks.append(image[keep])
-
-    pred = np.concatenate(pred_chunks, axis=0).reshape(-1, 3)
-    gt = np.concatenate(gt_chunks, axis=0).reshape(-1, 3)
-    color = np.concatenate(color_chunks, axis=0).reshape(-1, 3)
-    keep = (
-        np.isfinite(pred).all(axis=-1)
-        & np.isfinite(gt).all(axis=-1)
-        & np.isfinite(color).all(axis=-1)
-    )
-    pred, gt, color = pred[keep], gt[keep], color[keep]
-
-    if args.ply_max_points > 0 and len(pred) > args.ply_max_points:
-        rng = np.random.default_rng(args.seed)
-        idx = rng.choice(len(pred), args.ply_max_points, replace=False)
-        pred, gt, color = pred[idx], gt[idx], color[idx]
-
-    ply_root = Path(args.ply_output_dir or args.output_dir)
-    scene_dir = ply_root / scene
-    scene_dir.mkdir(parents=True, exist_ok=True)
-
-    pred_pcd = o3d.geometry.PointCloud()
-    pred_pcd.points = o3d.utility.Vector3dVector(pred)
-    pred_pcd.colors = o3d.utility.Vector3dVector(np.clip(color, 0.0, 1.0))
-    pred_path = scene_dir / f"{model_name}.ply"
-    o3d.io.write_point_cloud(
-        str(pred_path), pred_pcd, write_ascii=False, compressed=False
-    )
-
-    gt_path = scene_dir / "gt.ply"
-    if not gt_path.exists():
-        gt_pcd = o3d.geometry.PointCloud()
-        gt_pcd.points = o3d.utility.Vector3dVector(gt)
-        gt_pcd.colors = o3d.utility.Vector3dVector(np.clip(color, 0.0, 1.0))
-        o3d.io.write_point_cloud(
-            str(gt_path), gt_pcd, write_ascii=False, compressed=False
-        )
-
-    print(
-        f"[PLY_SAVED] scene={scene} model={model_name} "
-        f"pred={pred_path} gt={gt_path} points={len(pred)}",
-        flush=True,
-    )
 
 
 def build_dataset(args, scene: str):
@@ -624,9 +566,6 @@ def eval_one_scene(args, model_name: str, model, scene: str) -> dict:
             torch.cuda.empty_cache()
 
     pts_all, pts_gt_all, masks_all, images_all = collect_metric_arrays(batch, preds, args)
-    save_scene_pointclouds(
-        pts_all, pts_gt_all, masks_all, images_all, args, model_name, scene
-    )
     metrics = compute_open3d_metrics(pts_all, pts_gt_all, masks_all, images_all, args)
     fps = len(batch) / max(elapsed, 1e-9)
 
@@ -721,28 +660,25 @@ def parse_args():
     parser = argparse.ArgumentParser("Clean NRGBD point-cloud metric")
     parser.add_argument("--model", choices=MODELS, required=True)
     parser.add_argument("--scenes", nargs="+", default=list(SCENES))
-    parser.add_argument("--output_dir", default="/root/autodl-tmp/clean_launchers/pointcloud/results")
+    parser.add_argument("--output_dir", default="outputs/evaluation")
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--size", type=int, default=512)
-    parser.add_argument("--nrgbd_root", default="/root/autodl-tmp/neural_rgbd")
+    parser.add_argument("--nrgbd_root", default="")
     parser.add_argument("--kf_every", type=int, default=2)
     parser.add_argument("--max_frames", type=int, default=200)
     parser.add_argument("--center_crop", type=int, default=224)
     parser.add_argument("--icp_thresh", type=float, default=0.1)
     parser.add_argument("--max_points", type=int, default=999999, help="Maximum sampled points for Open3D ICP/NC metric; 0 keeps all points")
-    parser.add_argument("--save_ply", action="store_true")
-    parser.add_argument("--ply_max_points", type=int, default=999999)
-    parser.add_argument("--ply_output_dir", default="")
     parser.add_argument("--seed", type=int, default=0)
 
-    parser.add_argument("--point3r_repo", default="/root/autodl-tmp/Point3R_mdf")
-    parser.add_argument("--point3r_weights", default="/root/autodl-tmp/checkpoints/point3r_512.pth")
-    parser.add_argument("--ghost_repo", default="/root/autodl-tmp/GHOST")
-    parser.add_argument("--ghost_weights", default="/root/autodl-tmp/checkpoints/checkpoints.pth")
+    parser.add_argument("--point3r_repo", default=str(Path(__file__).resolve().parents[2]))
+    parser.add_argument("--point3r_weights", default="")
+    parser.add_argument("--ghost_repo", default="")
+    parser.add_argument("--ghost_weights", default="")
     parser.add_argument("--ghost_total_budget", type=int, default=1200000)
     parser.add_argument("--ghost_patch_multiple", type=int, default=14)
-    parser.add_argument("--ttt3r_repo", default="/root/autodl-tmp/TTT3R")
-    parser.add_argument("--ttt3r_weights", default="/root/autodl-tmp/checkpoints/cut3r_512_dpt_4_64.pth")
+    parser.add_argument("--ttt3r_repo", default="")
+    parser.add_argument("--ttt3r_weights", default="")
 
     parser.add_argument("--kway_slots", type=int, default=8)
     parser.add_argument("--theta_bins", type=int, default=16)
@@ -812,12 +748,11 @@ def main() -> int:
                 traceback.print_exc()
                 lf.write(msg + "\n")
                 lf.write(traceback.format_exc() + "\n")
-                lf.write(traceback.format_exc() + "\n")
                 failures.append(msg)
     write_stats(out_dir, rows, failures)
     print(f"wrote {summary}")
     print(f"wrote {out_dir / 'stats_only.log'}")
-    return 0
+    return 1 if failures or not rows else 0
 
 
 if __name__ == "__main__":

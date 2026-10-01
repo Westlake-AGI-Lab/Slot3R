@@ -2,7 +2,7 @@
 
 # Shared paper configuration. Source this file after setting MODEL to one of:
 # ours, ours_ray, or ours_rayma.
-MODEL="${MODEL:-ours_rayma}"
+MODEL="${MODEL:-core}"
 
 export POINT3R_MEMORY_UPDATE_MODE=ordered_kway
 export POINT3R_MEMORY_IMPL=tensor
@@ -27,12 +27,12 @@ export POINT3R_SPARSE_GLOBAL_ANCHORS=128
 export POINT3R_SPARSE_NEIGHBOR_RANGE=1
 
 case "$MODEL" in
-  ours)
+  core|ours)
     module=dust3r.point3r_kway_frame_sparse_q35_confselect
     export POINT3R_RAYAWARE_UPDATE=0
     export POINT3R_LC_ENABLED=0
     ;;
-  ours_ray)
+  vpc_m|ours_ray)
     module=dust3r.point3r_kway_frame_sparse_q35_confselect_rayaware_v82e_balanced_predecoder_pose
     export POINT3R_RAY_DUAL_BANK=1
     export POINT3R_RAY_BANK_UPDATE_EVERY=4
@@ -47,7 +47,7 @@ case "$MODEL" in
     export POINT3R_RAY_POSE_INPUT_MAX_WEIGHT=0.025
     export POINT3R_RAY_POSE_INPUT_TEMPERATURE=0.10
     ;;
-  ours_rayma)
+  vpc_a|ours_rayma)
     module=dust3r.point3r_kway_frame_sparse_q35_confselect_rayaware_v106_fresh_bank_pose
     export POINT3R_RAY_DUAL_BANK=1
     export POINT3R_RAY_BANK_UPDATE_EVERY=1
@@ -64,7 +64,7 @@ case "$MODEL" in
     export POINT3R_RAY_POSE_INPUT_TEMPERATURE=0.10
     ;;
   *)
-    echo "MODEL must be ours, ours_ray, or ours_rayma" >&2
+    echo "MODEL must be core, vpc_m, or vpc_a (legacy ours aliases also accepted)" >&2
     return 2 2>/dev/null || exit 2
     ;;
 esac
@@ -73,7 +73,7 @@ export POINT3R_POSE_MODEL_MODULE="$module"
 export POINT3R_DEPTH_MODEL_MODULE="$module"
 
 # Verified state-regularization chain used by Ours-Ray/Ours-RayMA pose runs.
-if [[ "$MODEL" != "ours" ]]; then
+if [[ "$MODEL" != "ours" && "$MODEL" != "core" ]]; then
   export POINT3R_LC_ENABLED=1
   export POINT3R_LC_LOOP_DETECTION=0
   export POINT3R_LC_ODOM_MAX_LAG=3

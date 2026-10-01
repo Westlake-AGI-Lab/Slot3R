@@ -116,7 +116,7 @@ def load_model_class(method: str):
         raise ValueError(f"unsupported method={method}")
     model_module = os.environ.get(
         "POINT3R_POSE_MODEL_MODULE",
-        "dust3r.point3r_kway_frame_sparse_q35_confselect_rayaway_closedloop_v16",
+        "dust3r.point3r_kway_frame_sparse_q35_confselect",
     )
     Point3R = importlib.import_module(model_module).Point3R
     print(
@@ -241,7 +241,7 @@ def run_one_scene(args) -> tuple[float, float, float]:
     from eval.relpose.utils import eval_metrics, get_tum_poses, load_traj
     from src.dust3r.inference import inference
 
-    metadata = dataset_metadata.get("scannet")
+    metadata = dataset_metadata.get(args.dataset)
     if metadata is None:
         raise RuntimeError("dataset_metadata has no scannet entry")
 
@@ -306,8 +306,6 @@ def run_one_scene(args) -> tuple[float, float, float]:
 
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    np.savetxt(output_dir / f"{scene}_pred_focal.txt", cam_dict["focal"])
-    np.savetxt(output_dir / f"{scene}_pred_pp.txt", cam_dict["pp"])
 
     anno_path = metadata.get("anno_path", None)
     gt_traj_file = metadata["gt_traj_func"](img_path, anno_path, scene)
@@ -333,9 +331,10 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--method", choices=("sparse640_q25",), required=True)
     parser.add_argument("--scene", required=True)
-    parser.add_argument("--scannet_root", default="/root/autodl-tmp/scannetv2")
-    parser.add_argument("--repo", default="/root/autodl-tmp/Point3R_mdf")
-    parser.add_argument("--weights", default="/root/autodl-tmp/checkpoints/point3r_512.pth")
+    parser.add_argument("--dataset", choices=("scannet", "tum"), default="scannet")
+    parser.add_argument("--scannet_root", default="")
+    parser.add_argument("--repo", default=str(Path(__file__).resolve().parents[2]))
+    parser.add_argument("--weights", default="")
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--output_dir", required=True)
     parser.add_argument("--size", type=int, default=512)

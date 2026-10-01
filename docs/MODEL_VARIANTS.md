@@ -5,9 +5,9 @@ names, source files, and verified SHA-256 hashes.
 
 | Paper label | Historical name | Source file under `src/dust3r/` | SHA-256 |
 | --- | --- | --- | --- |
-| Ours | base K-way / ConfSelect | `point3r_kway_frame_sparse_q35_confselect.py` | `87373a6e7705b6478a9598c0e8be1b3b232168d96fee3c1cbd06964e6221d145` |
-| Ours-Ray | v82e / v82k | `point3r_kway_frame_sparse_q35_confselect_rayaware_v82e_balanced_predecoder_pose.py` | `6614815354b4b65500e4cf254f1d8e87d3156a322419e4fd5c87dd8ac4b7fd18` |
-| Ours-RayMA | v106 | `point3r_kway_frame_sparse_q35_confselect_rayaware_v106_fresh_bank_pose.py` | `0d38c0cdca24d778fb0f2b856d0fea1a5cab5c17c65dc01b912fb9f397c55209` |
+| Slot3R (Core), `core` (formerly Ours) | base K-way / ConfSelect | `point3r_kway_frame_sparse_q35_confselect.py` | `87373a6e7705b6478a9598c0e8be1b3b232168d96fee3c1cbd06964e6221d145` |
+| Slot3R-VPC-M, `vpc_m` (formerly Ours-Ray) | v82e / v82k | `point3r_kway_frame_sparse_q35_confselect_rayaware_v82e_balanced_predecoder_pose.py` | `6614815354b4b65500e4cf254f1d8e87d3156a322419e4fd5c87dd8ac4b7fd18` |
+| Slot3R-VPC-A, `vpc_a` (formerly Ours-RayMA) | v106 | `point3r_kway_frame_sparse_q35_confselect_rayaware_v106_fresh_bank_pose.py` | `0d38c0cdca24d778fb0f2b856d0fea1a5cab5c17c65dc01b912fb9f397c55209` |
 
 ## Important v82e disambiguation
 

@@ -5,7 +5,6 @@
 
 import torchvision.transforms as tvf
 import sys
-sys.path.append("/mnt/disk5/myspace/Point3R/src")
 from dust3r.utils.image import ImgNorm
 
 

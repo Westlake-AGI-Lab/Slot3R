@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""ScanNet video-depth evaluator for the prepared 90-frame split.
+"""Clean Bonn depth evaluator aligned to the MonST3R prepared 110-frame split.
 
 Dataset protocol:
-  <scannet_root>/<scene>/color_90/*.{jpg,png}
-  <scannet_root>/<scene>/depth_90/*.png
-  <scannet_root>/<scene>/pose_90.txt
+  <bonn_root>/rgbd_bonn_<scene>/rgb_110/*.png
+  <bonn_root>/rgbd_bonn_<scene>/depth_110/*.png
+  <bonn_root>/rgbd_bonn_<scene>/groundtruth_110.txt
 
 Depth protocol:
-  - depth png scale: /1000.0 meters
+  - depth png scale: /5000.0 meters
   - MonST3R no-crop geometry: resize long edge to --size, then make H/W multiples of 16
   - valid GT: min_depth < depth < max_depth
   - default alignment: scale_shift least squares on valid pixels
@@ -34,7 +34,12 @@ import numpy as np
 import torch
 
 
-MODELS = ("point3r", "kway", "depthcc", "sparse512", "geoanchor512", "cut3r", "ghost", "ttt3r")
+MODELS = ('point3r', 'depthcc', 'cut3r', 'ghost', 'ttt3r')
+DEFAULT_SCENES = ("balloon2", "crowd2", "crowd3", "person_tracking2", "synchronous")
+BONN_INTRINSICS = np.array(
+    [[542.822841, 0.0, 315.593520], [0.0, 542.576870, 237.756098], [0.0, 0.0, 1.0]],
+    dtype=np.float32,
+)
 
 
 def add_path(path: str | Path) -> None:
@@ -85,8 +90,6 @@ def clear_point3r_env() -> None:
         "POINT3R_GEOANCHOR_SLOTS_PER_KF",
         "POINT3R_GEOANCHOR_MAX_KFS",
         "POINT3R_PROFILE",
-        "POINT3R_CGMC_DROP_QUANTILE",
-        "POINT3R_CGMC_MIN_CONF",
     ):
         os.environ.pop(key, None)
 
@@ -165,27 +168,24 @@ def resize_like_monst3r_no_crop(image, depth, intrinsics, long_edge_size: int):
 
 
 def load_bonn_scene(args, scene: str):
-    root = Path(args.scannet_root) / scene
-    rgb_dir = root / "color_90"
-    depth_dir = root / "depth_90"
-    pose_path = root / "pose_90.txt"
+    # Accept both the short protocol name (``balloon2``) and the on-disk
+    # directory name (``rgbd_bonn_balloon2``).  This makes SCENES usable with
+    # names copied directly from the dataset directory without duplicating the
+    # prefix.
+    scene_dir = scene if scene.startswith("rgbd_bonn_") else f"rgbd_bonn_{scene}"
+    root = Path(args.bonn_root) / scene_dir
+    rgb_dir = root / "rgb_110"
+    depth_dir = root / "depth_110"
+    pose_path = root / "groundtruth_110.txt"
     if not rgb_dir.is_dir():
         raise FileNotFoundError(rgb_dir)
     if not depth_dir.is_dir():
         raise FileNotFoundError(depth_dir)
     if not pose_path.is_file():
         raise FileNotFoundError(pose_path)
-    rgb_files = sorted((p for p in rgb_dir.iterdir() if p.suffix.lower() in (".png", ".jpg", ".jpeg")), key=lambda p: p.stem)
-    depth_by_stem = {p.stem: p for p in depth_dir.iterdir() if p.suffix.lower() == ".png"}
-    rgb_files = [p for p in rgb_files if p.stem in depth_by_stem]
-    depth_files = [depth_by_stem[p.stem] for p in rgb_files]
-    pose_raw = np.loadtxt(pose_path, dtype=np.float32)
-    if pose_raw.ndim == 1:
-        pose_raw = pose_raw[None]
-    if pose_raw.shape[1] != 16:
-        raise ValueError(f"bad pose_90 shape {pose_raw.shape} in {pose_path}")
-    poses = pose_raw.reshape(-1, 4, 4)
-    intrinsics = np.loadtxt(root / "intrinsic" / "intrinsic_color.txt", dtype=np.float32)[:3, :3]
+    rgb_files = sorted(p for p in rgb_dir.iterdir() if p.suffix.lower() in (".png", ".jpg", ".jpeg"))
+    depth_files = sorted(p for p in depth_dir.iterdir() if p.suffix.lower() in (".png", ".jpg", ".jpeg"))
+    poses = read_tum_poses_ordered(pose_path)
     n = min(len(rgb_files), len(depth_files), len(poses))
     frames = []
     for idx in range(0, n, max(1, args.kf_every)):
@@ -200,13 +200,13 @@ def load_bonn_scene(args, scene: str):
         depth[depth < 1e-3] = 0.0
         if rgb.shape[:2] != depth.shape[:2]:
             rgb = cv2.resize(rgb, (depth.shape[1], depth.shape[0]), interpolation=cv2.INTER_AREA)
-        rgb, depth, intrinsics_resized = resize_like_monst3r_no_crop(rgb, depth, intrinsics, args.size)
+        rgb, depth, intrinsics = resize_like_monst3r_no_crop(rgb, depth, BONN_INTRINSICS, args.size)
         frames.append(
             {
                 "rgb": rgb,
                 "depth": depth.astype(np.float32),
                 "pose": poses[idx].astype(np.float32),
-                "intrinsics": intrinsics_resized.astype(np.float32),
+                "intrinsics": intrinsics.astype(np.float32),
                 "rgb_path": str(rgb_files[idx]),
                 "depth_path": str(depth_files[idx]),
             }
@@ -291,15 +291,12 @@ def resize_map_to_hw(x, hw):
 def build_ghost_views_from_batch(batch, multiple: int = 14):
     views, original_shapes = [], []
     for view in batch:
-        # Point3R/CUT3R consume [-1, 1], while GHOST's official loader
-        # passes torchvision ToTensor output directly in [0, 1].
-        img = ((view["img"] + 1.0) * 0.5).clamp_(0.0, 1.0)
+        img = view["img"]
         h, w = img.shape[-2:]
         hh, ww = ceil_to_multiple(h, multiple), ceil_to_multiple(w, multiple)
         new_view = dict(view)
-        new_view["img"] = img
         if (hh, ww) != (h, w):
-            new_view["img"] = torch.nn.functional.interpolate(img, size=(hh, ww), mode="bicubic", align_corners=False)
+            new_view["img"] = torch.nn.functional.interpolate(img, size=(hh, ww), mode="bilinear", align_corners=False)
         views.append(new_view)
         original_shapes.append((h, w))
     return views, original_shapes
@@ -340,6 +337,8 @@ def build_ttt3r_views_from_batch(batch, device):
 def load_model(args, model_name: str):
     device = args.device
     if model_name in ("point3r", "kway", "depthcc", "sparse512", "geoanchor512"):
+        # depthcc uses the frame-sparse ConfSelect implementation. Configure it
+        # as sparse readout so the requested token budget is not cleared.
         configure_point3r_env(model_name, args)
         add_point3r_paths(args.point3r_repo)
         if model_name == "point3r":
@@ -452,12 +451,7 @@ def pred_to_depth(pred, hw, model_name=None):
                 raise KeyError(f"ghost prediction missing depth keys={list(pred.keys())}")
             depth = pred["depth"]
             if depth.ndim == 4:
-                if depth.shape[-1] == 1:
-                    depth = depth[..., 0]
-                elif depth.shape[1] == 1:
-                    depth = depth[:, 0]
-                else:
-                    raise ValueError(f"unexpected ghost depth shape={tuple(depth.shape)}")
+                depth = depth[:, 0]
             return resize_map_to_hw(depth, hw)[0].detach().float().cpu().numpy()
 
         if source in ("pts3d_in_self_view", "pts3d", "pts3d_in_other_view"):
@@ -515,8 +509,7 @@ def align_depth(pred, gt, mask, mode: str):
     raise ValueError(mode)
 
 
-def depth_metrics(preds, batch, args, align=None):
-    align = args.align if align is None else align
+def depth_metrics(preds, batch, args):
     records = []
     for pred, view in zip(preds, batch):
         gt = view["depthmap"][0, 0].detach().cpu().numpy().astype(np.float32)
@@ -536,10 +529,10 @@ def depth_metrics(preds, batch, args, align=None):
     if not records:
         return {k: float("nan") for k in ("AbsRel", "SqRel", "RMSE", "RMSElog", "Delta1", "Delta2", "Delta3", "Valid")}
 
-    if align.startswith("sequence_"):
+    if args.align.startswith("sequence_"):
         p_all = np.concatenate([r["pd"][r["mask"]].astype(np.float64) for r in records])
         g_all = np.concatenate([r["gt"][r["mask"]].astype(np.float64) for r in records])
-        seq_mode = align[len("sequence_") :]
+        seq_mode = args.align[len("sequence_") :]
         if seq_mode == "scale":
             denom = float(np.dot(p_all, p_all))
             scale = float(np.dot(p_all, g_all) / denom) if denom > 1e-12 else 1.0
@@ -554,12 +547,12 @@ def depth_metrics(preds, batch, args, align=None):
             scale, shift = np.linalg.lstsq(a, g_all, rcond=None)[0]
             scale, shift = float(scale), float(shift)
         else:
-            raise ValueError(align)
+            raise ValueError(args.align)
         for r in records:
             r["pd"] = r["pd"] * scale + shift
         metric_align = "none"
     else:
-        metric_align = align
+        metric_align = args.align
 
     vals = []
     for r in records:
@@ -607,36 +600,14 @@ def eval_one_scene(args, model_name: str, model, scene: str):
     }
 
 
-def eval_one_scene_paired(args, model_name: str, model, scene: str):
-    frames = load_bonn_scene(args, scene)
-    batch = frames_to_batch(frames)
-    preds, elapsed, peak = run_model(args, model_name, model, batch)
-    n = min(len(batch), len(preds))
-    batch, preds = batch[:n], preds[:n]
-    common = {
-        "model": model_name,
-        "scene": scene,
-        "frames": n,
-        "FPS": n / max(elapsed, 1e-9),
-        "Time": elapsed,
-        "Peak": peak,
-    }
-    metric = {**common, **depth_metrics(preds, batch, args, align="none")}
-    scale_shift = {
-        **common,
-        **depth_metrics(preds, batch, args, align="sequence_scale_shift"),
-    }
-    return metric, scale_shift
-
-
 def existing_scenes(root: str | Path, scenes: list[str] | None):
     if scenes:
         return scenes
     root = Path(root)
     out = []
-    for scene_dir in sorted(root.glob("scene*")):
-        if (scene_dir / "color_90").is_dir() and (scene_dir / "depth_90").is_dir():
-            out.append(scene_dir.name)
+    for scene in DEFAULT_SCENES:
+        if (root / f"rgbd_bonn_{scene}" / "rgb_110").is_dir():
+            out.append(scene)
     return out
 
 
@@ -672,8 +643,8 @@ def write_stats(path: Path, rows: list[dict], failures: list[str], header: list[
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--scannet_root", default="/root/autodl-tmp/scannetv2")
-    parser.add_argument("--output_dir", default="/root/autodl-tmp/clean_launchers/depth/results/scannet_depth")
+    parser.add_argument("--bonn_root", default="")
+    parser.add_argument("--output_dir", default="outputs/evaluation")
     parser.add_argument("--model", choices=MODELS, default=None)
     parser.add_argument("--models", nargs="+", choices=MODELS, default=None)
     parser.add_argument("--scenes", nargs="+", default=None)
@@ -681,9 +652,9 @@ def parse_args():
     parser.add_argument("--size", type=int, default=512)
     parser.add_argument("--kf_every", type=int, default=1)
     parser.add_argument("--max_frames", type=int, default=0)
-    parser.add_argument("--depth_scale", type=float, default=1000.0)
+    parser.add_argument("--depth_scale", type=float, default=5000.0)
     parser.add_argument("--min_depth", type=float, default=1e-3)
-    parser.add_argument("--max_depth", type=float, default=10.0)
+    parser.add_argument("--max_depth", type=float, default=70.0)
     parser.add_argument(
         "--align",
         choices=("none", "scale", "median", "scale_shift", "sequence_scale", "sequence_median", "sequence_scale_shift"),
@@ -691,16 +662,16 @@ def parse_args():
     )
     parser.add_argument("--center_crop", type=int, default=0)
 
-    parser.add_argument("--point3r_repo", default="/root/autodl-tmp/Point3R_mdf")
-    parser.add_argument("--point3r_weights", default="/root/autodl-tmp/checkpoints/point3r_512.pth")
-    parser.add_argument("--cut3r_repo", default="/root/autodl-tmp/CUT3R")
-    parser.add_argument("--cut3r_weights", default="/root/autodl-tmp/checkpoints/cut3r_512_dpt_4_64.pth")
-    parser.add_argument("--ghost_repo", default="/root/autodl-tmp/GHOST")
-    parser.add_argument("--ghost_weights", default="/root/checkpoints/checkpoints.pth")
+    parser.add_argument("--point3r_repo", default=str(Path(__file__).resolve().parents[2]))
+    parser.add_argument("--point3r_weights", default="")
+    parser.add_argument("--cut3r_repo", default="")
+    parser.add_argument("--cut3r_weights", default="")
+    parser.add_argument("--ghost_repo", default="")
+    parser.add_argument("--ghost_weights", default="")
     parser.add_argument("--ghost_total_budget", type=int, default=1200000)
     parser.add_argument("--ghost_patch_multiple", type=int, default=14)
-    parser.add_argument("--ttt3r_repo", default="/root/autodl-tmp/TTT3R")
-    parser.add_argument("--ttt3r_weights", default="/root/autodl-tmp/checkpoints/cut3r_512_dpt_4_64.pth")
+    parser.add_argument("--ttt3r_repo", default="")
+    parser.add_argument("--ttt3r_weights", default="")
 
     parser.add_argument("--kway_slots", type=int, default=8)
     parser.add_argument("--theta_bins", type=int, default=16)
@@ -718,89 +689,48 @@ def main() -> int:
     models = args.models if args.models is not None else ([args.model] if args.model else None)
     if not models:
         raise SystemExit("pass --model NAME or --models NAME ...")
-    scenes = existing_scenes(args.scannet_root, args.scenes)
+    scenes = existing_scenes(args.bonn_root, args.scenes)
     out = Path(args.output_dir)
     out.mkdir(parents=True, exist_ok=True)
-    paired_root = out.parents[2] if len(out.parents) >= 3 else None
-    paired = (
-        args.align == "none"
-        and out.name == "metric"
-        and paired_root is not None
-        and (paired_root / "ENABLE_PAIRED_SCANNET").is_file()
-    )
-    paired_out = out.parent / "scale_shift"
-    paired_summary = paired_out / "summary.tsv"
-    paired_log = out.parent / "scale_shift.log"
-    paired_stats = paired_out / "stats_only.log"
-    if paired:
-        paired_out.mkdir(parents=True, exist_ok=True)
     summary = out / "summary.tsv"
     log = out / "run.log"
     stats = out / "stats_only.log"
     header = ["model", "scene", "frames", "AbsRel", "SqRel", "RMSE", "RMSElog", "Delta1", "Delta2", "Delta3", "Valid", "FPS", "Time", "Peak"]
     summary.write_text("\t".join(header) + "\n")
     log.write_text("")
-    if paired:
-        paired_summary.write_text("\t".join(header) + "\n")
-        paired_log.write_text("")
     rows, failures = [], []
-    paired_rows, paired_failures = [], []
     with log.open("a", encoding="utf-8", errors="ignore") as lf:
-        lf.write(f"[check] scannet_root={args.scannet_root} scenes={scenes} size={args.size} align={args.align} max_depth={args.max_depth} drop_quantile={args.drop_quantile} sparse_max_tokens={args.sparse_max_tokens}\n")
-        if paired:
-            lf.write("[check] paired_alignments=none,sequence_scale_shift\n")
-            with paired_log.open("a", encoding="utf-8", errors="ignore") as pf:
-                pf.write(f"[check] scannet_root={args.scannet_root} scenes={scenes} size={args.size} align=sequence_scale_shift max_depth={args.max_depth} drop_quantile={args.drop_quantile} sparse_max_tokens={args.sparse_max_tokens}\n")
-                pf.write("[check] paired_forward_source=metric\n")
+        lf.write(
+            f"[check] bonn_root={args.bonn_root} scenes={scenes} size={args.size} "
+            f"align={args.align} max_depth={args.max_depth} "
+            f"drop_quantile={args.drop_quantile} sparse_max_tokens={args.sparse_max_tokens}\n"
+        )
         for model_name in models:
             print(f"[check] loading model={model_name}", flush=True)
             lf.write(f"[check] loading model={model_name}\n")
             model = load_model(args, model_name)
             for scene in scenes:
                 try:
-                    if paired:
-                        row, paired_row = eval_one_scene_paired(args, model_name, model, scene)
-                    else:
-                        row = eval_one_scene(args, model_name, model, scene)
+                    row = eval_one_scene(args, model_name, model, scene)
                     rows.append(row)
                     line = "\t".join(fmt(row[k], 4 if k in ("FPS", "Time", "Peak") else 6) for k in header)
                     print(f"[depth_scene] {line}", flush=True)
                     lf.write(f"[depth_scene] {line}\n")
                     with summary.open("a", encoding="utf-8") as sf:
                         sf.write(line + "\n")
-                    if paired:
-                        paired_rows.append(paired_row)
-                        paired_line = "\t".join(
-                            fmt(paired_row[k], 4 if k in ("FPS", "Time", "Peak") else 6)
-                            for k in header
-                        )
-                        print(f"[depth_scene_paired] {paired_line}", flush=True)
-                        with paired_log.open("a", encoding="utf-8", errors="ignore") as pf:
-                            pf.write(f"[depth_scene] {paired_line}\n")
-                        with paired_summary.open("a", encoding="utf-8") as sf:
-                            sf.write(paired_line + "\n")
                 except Exception as exc:
                     msg = f"[depth_scene] model={model_name} scene={scene} status=FAIL error={type(exc).__name__}: {exc}"
                     print(msg, flush=True)
                     lf.write(msg + "\n")
                     lf.write(traceback.format_exc() + "\n")
                     failures.append(msg)
-                    if paired:
-                        paired_failures.append(msg)
                 gc.collect()
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
     write_stats(stats, rows, failures, header)
-    if paired:
-        write_stats(paired_stats, paired_rows, paired_failures, header)
-        (out.parent / "PER_SEQUENCE_DONE.txt").touch()
     print(f"wrote {summary}")
     print(f"wrote {stats}")
-    if paired:
-        print(f"wrote {paired_summary}")
-        print(f"wrote {paired_stats}")
-        print("[paired_done] sequence_scale_shift", flush=True)
-    return 0
+    return 1 if failures or not rows else 0
 
 
 if __name__ == "__main__":
