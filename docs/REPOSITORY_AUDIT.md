@@ -6,7 +6,8 @@ Source revision: `b94b525b3627ca72165417c0406db7d95fea6fc8`.
 
 - Canonical table entrypoints now live under `eval/pointcloud`, `eval/pose` and
   `eval/depth`. Old Point3R launchers and experiment-machine scripts are archived
-  separately with their provenance. No model source file was changed.
+  separately with their provenance. The five checksummed Slot3R variant files
+  are unchanged; the AutoDL follow-up restores their missing fused RoPE dependency.
 - Removed the active point-cloud PLY export function, CLI flags and call site.
   Removed active pose trajectory plotting and depth/RGB/confidence image exporters.
   KITTI now scores predictions in memory rather than emitting NPY/PNG and stopping
@@ -29,16 +30,56 @@ Source revision: `b94b525b3627ca72165417c0406db7d95fea6fc8`.
 - Replaced the inherited Point3R landing README with Slot3R setup/evaluation
   instructions. Historical material and original licenses remain available.
 
-## Checks performed locally
+## Checks performed
 
-- Nine CPU-only unittest cases, including 24 model/dataset shell dispatch
+- Eleven unittest cases (all passed on AutoDL), including 24 model/dataset shell dispatch
   combinations, dataset layouts, KITTI frame pairing, failure propagation,
-  stale-output protection, shell/Python syntax, and no active media exporters.
+  stale-output protection, shell/Python syntax, no active media exporters,
+  paired point sampling, and CUDA RoPE parity with/without a pose token.
 - All five hashes in `MODEL_CHECKSUMS.sha256` match the source revision.
-- AST comparison confirms unchanged point-cloud array collection/metrics,
+- Initial AST comparison confirmed unchanged point-cloud array collection/metrics,
   Bonn/ScanNet depth alignment/metrics, evo pose metrics, and KITTI depth helper.
-- No checkpoint, datasets or CUDA environment are available locally. These checks
-  do not establish GPU runtime correctness or reproduce the paper's numbers.
+  The AutoDL follow-up corrects point subsampling to use shared prediction/GT
+  indices, as in the original table launcher, instead of independent samples.
+- The local Windows machine has no CUDA/checkpoint/datasets; nine tests pass
+  there and two dependency/GPU tests skip. All eleven pass on the AutoDL machine.
+
+## AutoDL Core NeuralRGBD validation (2026-10-01)
+
+Nine scenes completed with exit code 0, `kf=2`, `max_frames=200`, size 512,
+999,999 paired metric points, seed 0, K=8, Sparse640, 128 anchors and q=0.25.
+`thin_geometry` has only 198 sampled frames in both the historical and current
+runs; the total is 1,798 frames. No prediction NPY, PLY, or images were produced.
+No existing data files were deleted; about 1.1 GB remained on the data disk.
+
+| Metric | Historical K=8 run | Current source build | Difference |
+| --- | ---: | ---: | ---: |
+| Acc | 0.038787 | 0.038736 | -0.000051 (-0.13%) |
+| Comp | 0.017417 | 0.017595 | +0.000178 (+1.02%) |
+| NC | 0.679724 | 0.679711 | -0.000012 |
+| FPS | 17.958 | 19.944 | +1.986 |
+
+These are close aggregate values, not an exact per-scene reproduction. In
+particular, green_room NC is 0.632212 versus 0.647219 historically. Historical
+point sampling was unseeded, and the CUDA extension was rebuilt for this GPU;
+their separate contributions to the remaining differences have not been isolated.
+This 200-frame check does not validate the paper's 300/400/500-frame tables.
+
+The first complete run without fused RoPE3D scored Acc 0.039387, Comp 0.017855,
+NC 0.678012 and 5.157 FPS. The original experiment directory included fused
+RoPE3D sources missing from the release. Those sources were restored, with the
+3D wrapper reusing the 2D wrapper's loaded extension rather than importing the
+same binary under another name. A diagnostic using the old binary aborted at
+shutdown; a fresh source build with the single import completed normally.
+FP32 parity checks (head dimensions 64/72, with/without pose tokens) found a
+maximum absolute error of 1.08e-6 against the PyTorch reference. The five
+checksummed Slot3R variant source files remain byte-identical.
+
+Environment: RTX 4090, Python 3.11.15, PyTorch 2.5.1 / CUDA 12.1, Open3D 0.19.0,
+NumPy 2.4.6; the extension was compiled for sm_89. This records a working test
+environment, not a validated install lock for every task. Full per-scene values,
+source hashes and settings are in
+[`validation/nrgbd_kf2_len200_20261001.json`](validation/nrgbd_kf2_len200_20261001.json).
 
 ## AutoDL verification still required
 
@@ -56,7 +97,8 @@ Source revision: `b94b525b3627ca72165417c0406db7d95fea6fc8`.
    legacy loaders still rely on the original preprocessing/alignment convention.
 5. Run full table settings only after smoke tests; compare finite metrics,
    scene/frame counts, OOM handling, FPS protocol and output artifacts against
-   experiment records. No GPU numerical result has been claimed yet.
+   experiment records. Only the Core NeuralRGBD setting above has been run;
+   the pose/depth, other model variants, and full paper table settings remain pending.
 
 Legacy training/fine-tuning documentation is explicitly marked unsupported for
 this Slot3R release. Old experiment scripts are archival evidence, not portable

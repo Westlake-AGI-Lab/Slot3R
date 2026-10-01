@@ -41,6 +41,9 @@ Outputs: `summary.tsv`, `stats_only.log`, `run.log` under
 `outputs/pointcloud/<model>_<dataset>_kf<k>_len<n>/` by default.
 FPS excludes data loading and metric computation. Model inference and metric
 formulas are preserved from the recovered experiment code.
+The point cap uses shared sampling indices for predictions and GT, matching the
+original table launcher. Sampling uses a fixed seed (0 by default); historical
+runs used an unseeded sample, so their last digits can vary.
 
 ## Camera pose
 

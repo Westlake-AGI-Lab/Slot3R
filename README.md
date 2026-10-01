@@ -50,15 +50,17 @@ table reproductions.
 
 ## Validation status
 
-CPU-only launcher, path, export-policy and model-hash checks are available with:
+Launcher, path, export-policy, model-hash and optional CUDA kernel checks:
 
 ```bash
 python -m unittest discover -s tests -v
 sha256sum -c MODEL_CHECKSUMS.sha256
 ```
 
-GPU smoke tests and full numerical reproduction are pending. See the
-[cleanup audit](docs/REPOSITORY_AUDIT.md). The legacy training scripts are inherited
+Core NeuralRGBD evaluation (`kf=2`, up to 200 frames, nine scenes) has passed a
+real RTX 4090 run. Aggregate metrics are close to the historical reference;
+per-scene exact reproduction and the other task/model settings remain unverified.
+See the [cleanup audit](docs/REPOSITORY_AUDIT.md). The legacy training scripts are inherited
 from Point3R and are not a supported Slot3R training workflow in this release.
 
 ## Provenance and acknowledgements

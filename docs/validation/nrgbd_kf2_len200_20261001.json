@@ -1,0 +1,291 @@
+{
+  "base_commit": "ba176d0a560aa3560f241ee8f935dd3463948614",
+  "patch": "paired-correspondence sampling; seed 0; recovered fused RoPE3D built from source; single extension import",
+  "scenes_completed": 9,
+  "expected_scenes": 9,
+  "exit_code": 0,
+  "current_mean": {
+    "Acc": 0.03873644444444444,
+    "Comp": 0.017595,
+    "NC": 0.6797114444444444,
+    "FPS": 19.94401111111111,
+    "Time": 10.026944444444444,
+    "Peak": 9.274266666666666
+  },
+  "historical_mean": {
+    "Acc": 0.03878738423277571,
+    "Comp": 0.017417280119340364,
+    "NC": 0.6797237244374769
+  },
+  "per_scene": [
+    {
+      "scene": "breakfast_room",
+      "frames": 200,
+      "current": {
+        "Acc": 0.02912,
+        "Comp": 0.009664,
+        "NC": 0.73215,
+        "FPS": 18.6871,
+        "Time": 10.7026,
+        "Peak": 9.2844
+      },
+      "historical": {
+        "Acc": 0.028965389505838008,
+        "Comp": 0.009536827231964994,
+        "NC": 0.727640015972286
+      },
+      "delta": {
+        "Acc": 0.00015461049416199205,
+        "Comp": 0.00012717276803500717,
+        "NC": 0.004509984027713965
+      }
+    },
+    {
+      "scene": "complete_kitchen",
+      "frames": 200,
+      "current": {
+        "Acc": 0.031545,
+        "Comp": 0.011119,
+        "NC": 0.709369,
+        "FPS": 19.653,
+        "Time": 10.1765,
+        "Peak": 9.2844
+      },
+      "historical": {
+        "Acc": 0.03164488960487127,
+        "Comp": 0.011036289072228514,
+        "NC": 0.7093046503094734
+      },
+      "delta": {
+        "Acc": -9.988960487126997e-05,
+        "Comp": 8.27109277714861e-05,
+        "NC": 6.434969052659945e-05
+      }
+    },
+    {
+      "scene": "green_room",
+      "frames": 200,
+      "current": {
+        "Acc": 0.080647,
+        "Comp": 0.072243,
+        "NC": 0.632212,
+        "FPS": 20.7708,
+        "Time": 9.6289,
+        "Peak": 9.2844
+      },
+      "historical": {
+        "Acc": 0.08012765934297401,
+        "Comp": 0.07102918800308645,
+        "NC": 0.6472192986978313
+      },
+      "delta": {
+        "Acc": 0.0005193406570259823,
+        "Comp": 0.001213811996913547,
+        "NC": -0.01500729869783135
+      }
+    },
+    {
+      "scene": "grey_white_room",
+      "frames": 200,
+      "current": {
+        "Acc": 0.068635,
+        "Comp": 0.018572,
+        "NC": 0.656574,
+        "FPS": 19.6109,
+        "Time": 10.1984,
+        "Peak": 9.2844
+      },
+      "historical": {
+        "Acc": 0.06884326494297088,
+        "Comp": 0.018771231012577848,
+        "NC": 0.6542122034354687
+      },
+      "delta": {
+        "Acc": -0.0002082649429708816,
+        "Comp": -0.00019923101257784612,
+        "NC": 0.002361796564531282
+      }
+    },
+    {
+      "scene": "kitchen",
+      "frames": 200,
+      "current": {
+        "Acc": 0.023646,
+        "Comp": 0.009598,
+        "NC": 0.688563,
+        "FPS": 20.7461,
+        "Time": 9.6404,
+        "Peak": 9.2844
+      },
+      "historical": {
+        "Acc": 0.02370613266115361,
+        "Comp": 0.009120252046828578,
+        "NC": 0.6931113599843348
+      },
+      "delta": {
+        "Acc": -6.013266115360849e-05,
+        "Comp": 0.0004777479531714226,
+        "NC": -0.004548359984334782
+      }
+    },
+    {
+      "scene": "morning_apartment",
+      "frames": 200,
+      "current": {
+        "Acc": 0.022938,
+        "Comp": 0.009536,
+        "NC": 0.651261,
+        "FPS": 20.5142,
+        "Time": 9.7493,
+        "Peak": 9.2844
+      },
+      "historical": {
+        "Acc": 0.023462787376035257,
+        "Comp": 0.009719786212948979,
+        "NC": 0.6501998062038945
+      },
+      "delta": {
+        "Acc": -0.0005247873760352573,
+        "Comp": -0.00018378621294897965,
+        "NC": 0.0010611937961054752
+      }
+    },
+    {
+      "scene": "staircase",
+      "frames": 200,
+      "current": {
+        "Acc": 0.046278,
+        "Comp": 0.012166,
+        "NC": 0.652594,
+        "FPS": 19.685,
+        "Time": 10.16,
+        "Peak": 9.2844
+      },
+      "historical": {
+        "Acc": 0.04586368987795619,
+        "Comp": 0.012421126513445867,
+        "NC": 0.6481344174658947
+      },
+      "delta": {
+        "Acc": 0.0004143101220438067,
+        "Comp": -0.00025512651344586704,
+        "NC": 0.0044595825341052775
+      }
+    },
+    {
+      "scene": "thin_geometry",
+      "frames": 198,
+      "current": {
+        "Acc": 0.020821,
+        "Comp": 0.004969,
+        "NC": 0.690801,
+        "FPS": 19.7157,
+        "Time": 10.0427,
+        "Peak": 9.1932
+      },
+      "historical": {
+        "Acc": 0.020752670608534987,
+        "Comp": 0.004955513706385834,
+        "NC": 0.6866702960990902
+      },
+      "delta": {
+        "Acc": 6.83293914650121e-05,
+        "Comp": 1.348629361416602e-05,
+        "NC": 0.004130703900909749
+      }
+    },
+    {
+      "scene": "whiteroom",
+      "frames": 200,
+      "current": {
+        "Acc": 0.024998,
+        "Comp": 0.010488,
+        "NC": 0.703879,
+        "FPS": 20.1133,
+        "Time": 9.9437,
+        "Peak": 9.2844
+      },
+      "historical": {
+        "Acc": 0.025719974174647147,
+        "Comp": 0.010165307274596221,
+        "NC": 0.701021471769018
+      },
+      "delta": {
+        "Acc": -0.0007219741746471477,
+        "Comp": 0.00032269272540377987,
+        "NC": 0.002857528230982065
+      }
+    }
+  ],
+  "historical_log": "/root/bucket_capacity_q25_sparse640_nrgbd9_kf2_len200_rerun_20260911/k8/NRGBD_long/logs_all.txt",
+  "environment": {
+    "torch": "2.5.1",
+    "numpy": "2.3.1",
+    "open3d": "0.19.0",
+    "transformers": "5.9.0",
+    "accelerate": "1.13.0"
+  },
+  "total_frames": 1798,
+  "mean_delta": {
+    "Acc": -5.0939788331268165e-05,
+    "Comp": 0.0001777198806596353,
+    "NC": -1.2279993032437986e-05
+  },
+  "mean_relative_delta_pct": {
+    "Acc": -0.13133081629213006,
+    "Comp": 1.0203652891951354,
+    "NC": -0.0018066153336881996
+  },
+  "media_files": [],
+  "runtime_manifest": {
+    "source_sha256": {
+      "eval/pointcloud/pointcloud_metric_clean.py": "7c58a680838ab2c45153d853700a7345bdcae35b88f6554e5c7eb9a3d7ebd770",
+      "eval/pointcloud/launch_ours_nrgbd.py": "a0e424e80a79adc520235e5fc4940eae748e172f1e82fbe0b322dc390823cb8d",
+      "eval/pointcloud/run.sh": "15883d38092973a4f9fa90068f8bd093627324cec55bfa8a5c49127f9f750935",
+      "src/croco/models/croco.py": "6e1b9c335b7bdff0227ce7e892089b4e18eeb2b3b536fe614a01128afa736c48",
+      "src/croco/models/curope/__init__.py": "c14ce72a80635b98503a6fc9b8b23b2927bd229bb2403cd8dcaa3edb8b232fc2",
+      "src/croco/models/curope/curope3d.py": "c365de2d5a8965c4f8e32e966d9ee5d65005fc03ee9df23b09f83a05a6302dd7",
+      "src/croco/models/curope/curope.cpp": "4e6947949aa3b9be7c8ecff6769f2ce7b7dc80be014e9a9ad9902feb29fb9c9b",
+      "src/croco/models/curope/kernels.cu": "737105031166976f027ffabbb32bff52d03ad200abe49ba57c65c5e7a842e307"
+    },
+    "python": "3.11.15 (main, Mar 11 2026, 17:20:07) [GCC 14.3.0]",
+    "torch_cuda": "12.1",
+    "gpu": "NVIDIA GeForce RTX 4090",
+    "build_arch": "sm_89",
+    "settings": {
+      "model": "Slot3R Core",
+      "kf_every": 2,
+      "max_frames": 200,
+      "max_points": 999999,
+      "seed": 0,
+      "size": 512,
+      "slots": 8,
+      "sparse_tokens": 640,
+      "anchors": 128,
+      "drop_quantile": 0.25
+    }
+  },
+  "unfused_mean": {
+    "Acc": 0.03938744444444445,
+    "Comp": 0.017854555555555554,
+    "NC": 0.6780122222222222,
+    "FPS": 5.157377777777778,
+    "Time": 38.765144444444445,
+    "Peak": 9.274266666666666
+  },
+  "historical_fps": 17.958,
+  "verification": {
+    "tests_passed_on_autodl": 11,
+    "model_checksums": "all five matched",
+    "gpu_run_exit_code": 0,
+    "data_files_deleted": 0,
+    "limitations": "Aggregate agreement, not exact per-scene reproduction; green_room NC remains lower. Other tasks/models and paper 300/400/500-frame settings were not run."
+  },
+  "model_sha256": {
+    "src/dust3r/point3r_kway_frame_sparse_q35_confselect.py": "87373a6e7705b6478a9598c0e8be1b3b232168d96fee3c1cbd06964e6221d145",
+    "src/dust3r/point3r_kway_frame_sparse_q35_confselect_rayaware_v82e_balanced_predecoder_pose.py": "6614815354b4b65500e4cf254f1d8e87d3156a322419e4fd5c87dd8ac4b7fd18",
+    "src/dust3r/point3r_kway_frame_sparse_q35_confselect_rayaware_v101_safe_translation.py": "72fb0640b8058f372caf036a17e689a9774db10cc5cbe76c9c0783830bda07b5",
+    "src/dust3r/point3r_kway_frame_sparse_q35_confselect_rayaware_v102_complementary_jerk.py": "642a25608187eb450600762d24c473e30b35154205f5d5def88d1b6a1cbbed27",
+    "src/dust3r/point3r_kway_frame_sparse_q35_confselect_rayaware_v106_fresh_bank_pose.py": "0d38c0cdca24d778fb0f2b856d0fea1a5cab5c17c65dc01b912fb9f397c55209"
+  }
+}

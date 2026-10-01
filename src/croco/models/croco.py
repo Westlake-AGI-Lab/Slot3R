@@ -7,6 +7,7 @@
 # --------------------------------------------------------
 
 
+import os
 import torch
 import torch.nn as nn
 
@@ -16,6 +17,10 @@ from functools import partial
 from models.blocks import Block, DecoderBlock, PatchEmbed
 from models.pos_embed import get_2d_sincos_pos_embed, RoPE2D
 from models.pos_embed_con import RoPE3DContinuous
+try:
+    from models.curope import cuRoPE3D
+except Exception:
+    cuRoPE3D = None
 from models.masking import RandomMask
 
 from transformers import PretrainedConfig
@@ -110,7 +115,16 @@ class CroCoNet(PreTrainedModel):
 
         if config.pos_embed_3d.startswith("RoPE3D"):
             freq = float(config.pos_embed_3d[len("RoPE3D") :])
-            self.rope3d = RoPE3DContinuous(freq=freq)
+            disable_fused_rope3d = os.environ.get("POINT3R_DISABLE_FUSED_ROPE3D", "0") == "1"
+            if cuRoPE3D is not None and not disable_fused_rope3d:
+                print("Using fused cuRoPE3D from models.curope", flush=True)
+                self.rope3d = cuRoPE3D(freq=freq)
+            else:
+                if disable_fused_rope3d:
+                    print("POINT3R_DISABLE_FUSED_ROPE3D=1, using slow pytorch RoPE3D", flush=True)
+                else:
+                    print("Warning, cannot find cuda-compiled version of RoPE3D, using slow pytorch version", flush=True)
+                self.rope3d = RoPE3DContinuous(freq=freq)
         else:
             self.rope3d = None
         

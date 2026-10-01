@@ -289,11 +289,14 @@ def center_crop(arr: np.ndarray, crop: int) -> np.ndarray:
     return arr[cy - r : cy + r, cx - r : cx + r]
 
 
-def maybe_subsample(points: np.ndarray, max_points: int, seed: int) -> np.ndarray:
-    if max_points <= 0 or len(points) <= max_points:
-        return points
-    rng = np.random.default_rng(seed)
-    return points[rng.choice(len(points), max_points, replace=False)]
+def subsample_correspondences(pred, gt, color, max_points: int, seed: int):
+    """Keep the same RGB/depth correspondences as the original table protocol."""
+    if not len(pred) == len(gt) == len(color):
+        raise ValueError("point-cloud sampling requires paired prediction/GT/color arrays")
+    if max_points <= 0 or len(pred) <= max_points:
+        return pred, gt, color
+    indices = np.random.default_rng(seed).choice(len(pred), max_points, replace=False)
+    return pred[indices], gt[indices], color[indices]
 
 
 def compute_open3d_metrics(pts_all, pts_gt_all, masks_all, images_all, args) -> dict[str, float]:
@@ -336,10 +339,9 @@ def compute_open3d_metrics(pts_all, pts_gt_all, masks_all, images_all, args) -> 
             "NC2_med": float("nan"),
         }
 
-    pred = maybe_subsample(pred, args.max_points, args.seed)
-    gt = maybe_subsample(gt, args.max_points, args.seed + 1)
-    if len(color) != len(pred):
-        color = np.ones_like(pred)
+    pred, gt, color = subsample_correspondences(
+        pred, gt, color, args.max_points, args.seed
+    )
 
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(pred)

@@ -2,6 +2,7 @@
 import argparse
 import ast
 import hashlib
+import importlib.util
 import os
 from pathlib import Path
 import re
@@ -26,6 +27,23 @@ def functions(path, names, namespace=None):
 
 
 class ProtocolTests(unittest.TestCase):
+    @unittest.skipUnless(importlib.util.find_spec("numpy"), "NumPy required for point sampling test")
+    def test_pointcloud_sampling_preserves_correspondences(self):
+        import numpy as np
+        sample = functions("eval/pointcloud/pointcloud_metric_clean.py",
+                           {"subsample_correspondences"}, {"np": np})["subsample_correspondences"]
+        pred = np.arange(300).reshape(100, 3)
+        gt, color = pred + 1000, pred + 2000
+        actual = sample(pred, gt, color, 17, 42)
+        self.assertEqual(len(actual[0]), 17)
+        self.assertEqual(len(np.unique(actual[0][:, 0])), 17)
+        np.testing.assert_array_equal(actual[1] - actual[0], np.full((17, 3), 1000))
+        np.testing.assert_array_equal(actual[2] - actual[0], np.full((17, 3), 2000))
+        np.testing.assert_array_equal(actual[0], sample(pred, gt, color, 17, 42)[0])
+        self.assertIs(sample(pred, gt, color, 0, 42)[0], pred)
+        with self.assertRaises(ValueError):
+            sample(pred, gt[:-1], color, 17, 42)
+
     def test_python_syntax_and_no_visualization_exports(self):
         forbidden = {"save", "savez", "savez_compressed", "imwrite", "imsave",
                      "write_point_cloud", "savefig", "plot_trajectory", "save_scene_pointclouds"}
