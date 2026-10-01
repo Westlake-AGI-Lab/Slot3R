@@ -5,12 +5,11 @@ from pathlib import Path
 
 import evo.main_ape as main_ape
 import evo.main_rpe as main_rpe
-import matplotlib.pyplot as plt
 import numpy as np
 from evo.core import sync
 from evo.core.metrics import PoseRelation, Unit
 from evo.core.trajectory import PosePath3D, PoseTrajectory3D
-from evo.tools import file_interface, plot
+from evo.tools import file_interface
 from scipy.spatial.transform import Rotation
 from evo.core import metrics
 
@@ -288,14 +287,6 @@ def eval_metrics_first_pose_align_last_pose(
                 # optionally copy other fields if your make_traj object has them
             )
             pred_traj = aligned_pred_traj  # .poses_se3 = aligned_pred_poses
-        plot_trajectory(
-            pred_traj,
-            gt_traj,
-            title=seq,
-            filename=figpath,
-            align=False,
-            correct_scale=False,
-        )
 
     if gt_traj is not None and len(gt_traj.poses_se3) > 0:
         gt_traj = PoseTrajectory3D(
@@ -324,41 +315,8 @@ def eval_metrics_first_pose_align_last_pose(
     return ate
 
 
-def best_plotmode(traj):
-    _, i1, i2 = np.argsort(np.var(traj.positions_xyz, axis=0))
-    plot_axes = "xyz"[i2] + "xyz"[i1]
-    return getattr(plot.PlotMode, plot_axes)
 
 
-def plot_trajectory(
-    pred_traj, gt_traj=None, title="", filename="", align=True, correct_scale=True
-):
-    pred_traj = make_traj(pred_traj)
-
-    if gt_traj is not None:
-        gt_traj = make_traj(gt_traj)
-        if pred_traj.timestamps.shape[0] == gt_traj.timestamps.shape[0]:
-            pred_traj.timestamps = gt_traj.timestamps
-        else:
-            print("WARNING", pred_traj.timestamps.shape[0], gt_traj.timestamps.shape[0])
-
-        gt_traj, pred_traj = sync.associate_trajectories(gt_traj, pred_traj)
-
-        if align:
-            pred_traj.align(gt_traj, correct_scale=correct_scale)
-
-    plot_collection = plot.PlotCollection("PlotCol")
-    fig = plt.figure(figsize=(8, 8))
-    plot_mode = best_plotmode(gt_traj if (gt_traj is not None) else pred_traj)
-    ax = plot.prepare_axis(fig, plot_mode)
-    ax.set_title(title)
-    if gt_traj is not None:
-        plot.traj(ax, plot_mode, gt_traj, "--", "gray", "Ground Truth")
-    plot.traj(ax, plot_mode, pred_traj, "-", "blue", "Predicted")
-    plot_collection.add_figure("traj_error", fig)
-    plot_collection.export(filename, confirm_overwrite=False)
-    plt.close(fig=fig)
-    print(f"Saved trajectory to {filename.replace('.png','')}_traj_error.png")
 
 
 def save_trajectory_tum_format(traj, filename):
@@ -389,7 +347,9 @@ def extract_metrics(file_path):
         re.DOTALL,
     )
 
-    ate = float(ate_match.group(1)) if ate_match else 0.0
+    if not all((ate_match, rpe_trans_match, rpe_rot_match)):
+        raise ValueError(f"Incomplete pose metrics: {file_path}")
+    ate = float(ate_match.group(1))
     rpe_trans = float(rpe_trans_match.group(1)) if rpe_trans_match else 0.0
     rpe_rot = float(rpe_rot_match.group(1)) if rpe_rot_match else 0.0
 
@@ -418,7 +378,7 @@ def calculate_averages(results):
     count = len(results)
 
     if count == 0:
-        return 0.0, 0.0, 0.0
+        raise ValueError("No pose metrics to average")
 
     avg_ate = total_ate / count
     avg_rpe_trans = total_rpe_trans / count

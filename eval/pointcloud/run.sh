@@ -4,14 +4,14 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="${SLOT3R_REPO:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
 PYTHON_BIN="${PYTHON_BIN:-python}"
-MODEL="${MODEL:-ours}"
+MODEL="${MODEL:-core}"
 DATASET="${DATASET:-nrgbd}"
 DATA_ROOT="${DATA_ROOT:?set DATA_ROOT to the 7Scenes or NeuralRGBD root}"
 WEIGHTS="${WEIGHTS:?set WEIGHTS to the pretrained Point3R checkpoint}"
-OUTPUT_DIR="${OUTPUT_DIR:-$REPO/outputs/pointcloud/${MODEL}_${DATASET}}"
 KF_EVERY="${KF_EVERY:-2}"
 MAX_FRAMES="${MAX_FRAMES:-300}"
 MAX_POINTS="${MAX_POINTS:-999999}"
+OUTPUT_DIR="${OUTPUT_DIR:-$REPO/outputs/pointcloud/${MODEL}_${DATASET}_kf${KF_EVERY}_len${MAX_FRAMES}}"
 
 export PYTHONPATH="$SCRIPT_DIR:$REPO:$REPO/src/croco:$REPO/src${PYTHONPATH:+:$PYTHONPATH}"
 export POINT3R_MEMORY_UPDATE_MODE=ordered_kway
@@ -31,12 +31,12 @@ export POINT3R_CGMC_WEIGHTED_MERGE=1
 export POINT3R_CONFSELECT_STATS="${POINT3R_CONFSELECT_STATS:-0}"
 
 case "$MODEL" in
-  ours)
+  core|ours)
     launcher_prefix=launch_ours
     model_name=slot3r_q25_sparse640
     export POINT3R_RAYAWARE_UPDATE=0
     ;;
-  ours_ray)
+  vpc_m|ours_ray)
     launcher_prefix=launch_ours_ray
     model_name=v82e_balanced_predecoder_pose_q25_sparse640
     export POINT3R_RAYAWARE_UPDATE=1
@@ -52,7 +52,7 @@ case "$MODEL" in
     export POINT3R_RAY_POSE_INPUT_MAX_WEIGHT=0.025
     export POINT3R_RAY_POSE_INPUT_TEMPERATURE=0.10
     ;;
-  ours_rayma)
+  vpc_a|ours_rayma)
     launcher_prefix=launch_ours_rayma
     model_name=v106_fresh_bank_pose_q25_sparse640
     export POINT3R_RAYAWARE_UPDATE=1
@@ -70,7 +70,7 @@ case "$MODEL" in
     export POINT3R_RAY_POSE_INPUT_TEMPERATURE=0.10
     ;;
   *)
-    echo "MODEL must be ours, ours_ray, or ours_rayma" >&2
+    echo "MODEL must be core, vpc_m, or vpc_a (legacy ours aliases also accepted)" >&2
     exit 2
     ;;
 esac
@@ -91,7 +91,7 @@ case "$DATASET" in
 esac
 
 read -r -a scenes <<< "${SCENES:-$default_scenes}"
-mkdir -p "$OUTPUT_DIR"
+source "$SCRIPT_DIR/../output_guard.sh"
 
 "$PYTHON_BIN" -B "$launcher" \
   --model "$model_name" \

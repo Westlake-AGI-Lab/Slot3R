@@ -1,3 +1,5 @@
+> Historical Point3R documentation. Training is not a supported Slot3R release workflow; use [table evaluation](eval.md).
+
 # Training
 
 We provide the following commands for training from scratch.

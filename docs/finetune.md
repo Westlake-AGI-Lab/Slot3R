@@ -1,3 +1,5 @@
+> Historical Point3R documentation. Training is not a supported Slot3R release workflow; use [table evaluation](eval.md).
+
 # Fine-tuning
 
 If you want to fine-tune our checkpoint, you can use the following command.

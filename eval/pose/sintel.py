@@ -20,6 +20,7 @@ from tqdm import tqdm
 
 def get_args_parser():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--data_root", required=True, help="Sintel training directory containing final/ and camdata_left/")
 
     parser.add_argument(
         "--weights",
@@ -71,7 +72,9 @@ def get_args_parser():
 
 
 def eval_pose_estimation(args, model, save_dir=None):
-    metadata = dataset_metadata.get(args.eval_dataset)
+    metadata = dict(dataset_metadata["sintel"])
+    metadata["img_path"] = os.path.join(args.data_root, "final")
+    metadata["anno_path"] = os.path.join(args.data_root, "camdata_left")
     img_path = metadata["img_path"]
     mask_path = metadata["mask_path"]
 
@@ -84,7 +87,9 @@ def eval_pose_estimation(args, model, save_dir=None):
 def eval_pose_estimation_dist(args, model, img_path, save_dir=None, mask_path=None):
     from src.dust3r.inference import inference
 
-    metadata = dataset_metadata.get(args.eval_dataset)
+    metadata = dict(dataset_metadata["sintel"])
+    metadata["img_path"] = os.path.join(args.data_root, "final")
+    metadata["anno_path"] = os.path.join(args.data_root, "camdata_left")
     anno_path = metadata.get("anno_path", None)
 
     seq_list = args.seq_list
@@ -115,6 +120,9 @@ def eval_pose_estimation_dist(args, model, img_path, save_dir=None, mask_path=No
         error_log_path = f"{save_dir}/_error_log_{distributed_state.process_index}.txt"  # Unique log file per process
         bug = False
         for seq in tqdm(seqs):
+            metric_path = os.path.join(save_dir, f"{seq}_eval_metric.txt")
+            if os.path.isfile(metric_path):
+                os.remove(metric_path)
             try:
                 dir_path = metadata["dir_path_func"](img_path, seq)
 
@@ -158,9 +166,6 @@ def eval_pose_estimation_dist(args, model, img_path, save_dir=None, mask_path=No
 
                 pred_traj = get_tum_poses(pr_poses)
                 os.makedirs(f"{save_dir}/{seq}", exist_ok=True)
-                save_tum_poses(pr_poses, f"{save_dir}/{seq}/pred_traj.txt")
-                save_focals(cam_dict, f"{save_dir}/{seq}/pred_focal.txt")
-                save_intrinsics(cam_dict, f"{save_dir}/{seq}/pred_intrinsics.txt")
 
                 gt_traj_file = metadata["gt_traj_func"](img_path, anno_path, seq)
                 traj_format = metadata.get("traj_format", None)
@@ -185,12 +190,8 @@ def eval_pose_estimation_dist(args, model, img_path, save_dir=None, mask_path=No
                         seq=seq,
                         filename=f"{save_dir}/{seq}_eval_metric.txt",
                     )
-                    plot_trajectory(
-                        pred_traj, gt_traj, title=seq, filename=f"{save_dir}/{seq}.png"
-                    )
                 else:
-                    ate, rpe_trans, rpe_rot = 0, 0, 0
-                    bug = True
+                    raise ValueError(f"No ground-truth trajectory for {seq}")
 
                 ate_list.append(ate)
                 rpe_trans_list.append(rpe_trans)
@@ -226,7 +227,10 @@ def eval_pose_estimation_dist(args, model, img_path, save_dir=None, mask_path=No
 
     distributed_state.wait_for_everyone()
 
-    results = process_directory(save_dir)
+    missing = [seq for seq in seq_list if not os.path.isfile(f"{save_dir}/{seq}_eval_metric.txt")]
+    if missing:
+        raise RuntimeError(f"Incomplete pose evaluation; missing metrics: {missing}")
+    results = [(seq, *extract_metrics(os.path.join(save_dir, f"{seq}_eval_metric.txt"))) for seq in seq_list]
     avg_ate, avg_rpe_trans, avg_rpe_rot = calculate_averages(results)
 
     # Write the averages to the error log (only on the main process)
@@ -254,7 +258,7 @@ if __name__ == "__main__":
     import importlib
     model_module = os.environ.get(
         "POINT3R_POSE_MODEL_MODULE",
-        "dust3r.point3r_kway_frame_sparse_q35_confselect_rayaway_pose_v5",
+        "dust3r.point3r_kway_frame_sparse_q35_confselect",
     )
     Point3R = importlib.import_module(model_module).Point3R
     print(f"[RAYAWAY_POSE_CONFIG] drop_q={os.environ.get('POINT3R_CGMC_DROP_QUANTILE','0.25')} min_conf={os.environ.get('POINT3R_CGMC_MIN_CONF','0.0')} sparse_max={os.environ.get('POINT3R_SPARSE_MAX_TOKENS','640')} module={model_module} rayaware={os.environ.get('POINT3R_RAYAWARE_UPDATE','0')}", flush=True)
@@ -459,5 +463,5 @@ if __name__ == "__main__":
     torch.backends.cuda.matmul.allow_tf32 = False
     torch.backends.cudnn.allow_tf32 = False
     torch.use_deterministic_algorithms(True, warn_only=True)
-    model = Point3R.from_pretrained(args.weights)
+    model = Point3R.from_pretrained(args.weights).eval()
     eval_pose_estimation(args, model, save_dir=args.output_dir)

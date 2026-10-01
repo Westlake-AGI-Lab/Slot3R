@@ -30,17 +30,7 @@ from pathlib import Path
 import numpy as np
 
 
-MODELS = (
-    "baseline",
-    "kway",
-    "sparse512",
-    "geoanchor512",
-    "sparse640_q25",
-    "cut3r",
-    "streamvggt",
-    "ghost",
-    "ttt3r",
-)
+MODELS = ('sparse640_q25', 'cut3r', 'streamvggt', 'ghost', 'ttt3r')
 
 
 def add_path(path: str | Path) -> None:
@@ -64,10 +54,10 @@ def default_scenes() -> list[str]:
     return [f"scene{i:04d}_00" for i in range(707, 807)]
 
 
-def scannet_files(scannet_root: str, scene: str, stride: int) -> tuple[list[str], Path]:
+def scannet_files(scannet_root: str, scene: str, stride: int, dataset: str = "scannet") -> tuple[list[str], Path]:
     root = Path(scannet_root) / scene
-    color = root / "color_90"
-    pose = root / "pose_90.txt"
+    color = root / ("rgb_90" if dataset == "tum" else "color_90")
+    pose = root / ("groundtruth_90.txt" if dataset == "tum" else "pose_90.txt")
     if not color.is_dir():
         raise FileNotFoundError(color)
     if not pose.is_file():
@@ -365,30 +355,9 @@ class Point3RBKSAdapter:
         if not self.backend.is_file():
             raise FileNotFoundError(f"Point3R BKS backend not found: {self.backend}")
 
-    def _prepare_one_scene_symlink(self, scene: str) -> None:
-        src = Path(self.args.scannet_root) / scene
-        one_eval = Path("/root/autodl-tmp/scannetv2_one_eval")
-        disk_eval_parent = Path("/mnt/disk5/data/eval")
-        disk_eval = disk_eval_parent / "scannet_eval"
-
-        if one_eval.exists() or one_eval.is_symlink():
-            shutil.rmtree(one_eval, ignore_errors=True)
-        one_eval.mkdir(parents=True, exist_ok=True)
-        link = one_eval / scene
-        if link.exists() or link.is_symlink():
-            link.unlink()
-        link.symlink_to(src)
-
-        disk_eval_parent.mkdir(parents=True, exist_ok=True)
-        if disk_eval.exists() or disk_eval.is_symlink():
-            if disk_eval.is_symlink() or disk_eval.is_file():
-                disk_eval.unlink()
-            else:
-                shutil.rmtree(disk_eval)
-        disk_eval.symlink_to(one_eval)
 
     def eval_scene(self, scene: str) -> dict:
-        files, pose_file = scannet_files(self.args.scannet_root, scene, self.args.pose_eval_stride)
+        files, pose_file = scannet_files(self.args.scannet_root, scene, self.args.pose_eval_stride, self.args.dataset)
         _ = load_replica_c2w(pose_file, stride=self.args.pose_eval_stride, n=len(files))
         scene_out = self.tmp_root / f"{scene}_{self.method}"
         shutil.rmtree(scene_out, ignore_errors=True)
@@ -398,6 +367,8 @@ class Point3RBKSAdapter:
             sys.executable,
             "-B",
             str(self.backend),
+            "--dataset",
+            self.args.dataset,
             "--method",
             self.method,
             "--scene",
@@ -424,9 +395,8 @@ class Point3RBKSAdapter:
             status = subprocess.run(cmd, cwd=str(self.repo), env=env, stdout=f, stderr=subprocess.STDOUT).returncode
 
         metric = scene_out / f"{scene}_eval_metric.txt"
-        if not metric.is_file():
+        if status != 0 or not metric.is_file():
             tail = raw_log.read_text(errors="ignore").splitlines()[-40:]
-            shutil.rmtree(scene_out, ignore_errors=True)
             raise RuntimeError(
                 f"NO_METRIC_FILE exit={status} backend={self.backend} "
                 f"tail={' | '.join(tail)}"
@@ -642,7 +612,7 @@ def eval_one_scene(args, adapter, model_name: str, scene: str) -> dict:
     if hasattr(adapter, "eval_scene"):
         return adapter.eval_scene(scene)
 
-    files, pose_file = scannet_files(args.scannet_root, scene, args.pose_eval_stride)
+    files, pose_file = scannet_files(args.scannet_root, scene, args.pose_eval_stride, args.dataset)
     gt_c2w = load_replica_c2w(pose_file, stride=args.pose_eval_stride, n=len(files))
     t0 = time.time()
     pred_c2w = adapter.predict_c2w(files)
@@ -700,9 +670,9 @@ def write_stats(stats_path: Path, rows: list[dict], failures: list[str], header:
 
 def main() -> int:
     p = argparse.ArgumentParser()
-    p.add_argument("--ffeval_root", default="/root/autodl-tmp/FeedForward_Eval")
-    p.add_argument("--scannet_root", default="/root/autodl-tmp/scannetv2")
-    p.add_argument("--output_dir", default="/root/autodl-tmp/results/ffeval_pose_scannet_color90")
+    p.add_argument("--dataset", choices=("scannet", "tum"), default="scannet")
+    p.add_argument("--scannet_root", default="")
+    p.add_argument("--output_dir", default="outputs/evaluation")
     p.add_argument("--model", choices=MODELS, default=None)
     p.add_argument("--models", nargs="+", choices=MODELS, default=None)
     p.add_argument("--scenes", nargs="+", default=None)
@@ -711,41 +681,42 @@ def main() -> int:
     p.add_argument("--no_crop", action="store_true")
     p.add_argument("--pose_eval_stride", type=int, default=1)
 
-    p.add_argument("--point3r_repo", default="/root/autodl-tmp/Point3R_mdf")
-    p.add_argument("--point3r_weights", default="/root/autodl-tmp/checkpoints/point3r_512.pth")
+    p.add_argument("--point3r_repo", default=str(Path(__file__).resolve().parents[2]))
+    p.add_argument("--point3r_weights", default="")
     p.add_argument(
         "--point3r_bks_backend",
-        default="/root/autodl-tmp/clean_launchers/pose/point3r_bks_sparse640_q25.py",
+        default=str(Path(__file__).resolve().with_name("backend.py")),
     )
 
-    p.add_argument("--cut3r_repo", default="/root/autodl-tmp/CUT3R")
-    p.add_argument("--cut3r_weights", default="/root/autodl-tmp/checkpoints/cut3r_512_dpt_4_64.pth")
+    p.add_argument("--cut3r_repo", default="")
+    p.add_argument("--cut3r_weights", default="")
 
-    p.add_argument("--streamvggt_repo", default="/root/autodl-tmp/StreamVGGT")
-    p.add_argument("--streamvggt_weights", default="/root/autodl-tmp/checkpoints/checkpoints.pth")
+    p.add_argument("--streamvggt_repo", default="")
+    p.add_argument("--streamvggt_weights", default="")
     p.add_argument("--streamvggt_class", default="streamvggt.models.streamvggt:StreamVGGT")
     p.add_argument("--streamvggt_image_loader", default="streamvggt.utils.load_fn:load_and_preprocess_images")
     p.add_argument("--streamvggt_pose_decoder", default="streamvggt.utils.pose_enc:pose_encoding_to_extri_intri")
     p.add_argument("--streamvggt_model_kwargs", default="")
 
-    p.add_argument("--ghost_repo", default="/root/autodl-tmp/GHOST")
-    p.add_argument("--ghost_weights", default="/root/autodl-tmp/checkpoints/checkpoints.pth")
+    p.add_argument("--ghost_repo", default="")
+    p.add_argument("--ghost_weights", default="")
     p.add_argument("--ghost_class", default="streamvggt.models.streamvggt:StreamVGGT")
     p.add_argument("--ghost_image_loader", default="streamvggt.utils.load_fn:load_and_preprocess_images")
     p.add_argument("--ghost_pose_decoder", default="streamvggt.utils.pose_enc:pose_encoding_to_extri_intri")
     p.add_argument("--ghost_model_kwargs", default="total_budget=1200000")
 
-    p.add_argument("--ttt3r_repo", default="/root/autodl-tmp/TTT3R")
-    p.add_argument("--ttt3r_weights", default="/root/autodl-tmp/checkpoints/cut3r_512_dpt_4_64.pth")
+    p.add_argument("--ttt3r_repo", default="")
+    p.add_argument("--ttt3r_weights", default="")
 
     args = p.parse_args()
-    add_path(args.ffeval_root)
     out = Path(args.output_dir)
     out.mkdir(parents=True, exist_ok=True)
     summary = out / "summary.tsv"
     log = out / "run.log"
     stats = out / "stats_only.log"
-    scenes = args.scenes or default_scenes()
+    scenes = args.scenes or (sorted(p.name for p in Path(args.scannet_root).iterdir() if p.is_dir() and (p / "groundtruth_90.txt").is_file()) if args.dataset == "tum" else default_scenes())
+    if not scenes:
+        p.error("No evaluation scenes found")
     models = args.models if args.models is not None else ([args.model] if args.model else None)
     if not models:
         p.error("pass --model NAME for one model, or --models NAME ... for an explicit batch")
@@ -759,7 +730,7 @@ def main() -> int:
 
     with log.open("a", encoding="utf-8", errors="ignore") as lf:
         lf.write(
-            f"[check] ffeval_root={args.ffeval_root} scannet_root={args.scannet_root} "
+            f"[check] dataset={args.dataset} data_root={args.scannet_root} "
             f"size={args.size} crop={not args.no_crop} stride={args.pose_eval_stride}\n"
         )
         for model_name in models:
@@ -783,7 +754,7 @@ def main() -> int:
     write_stats(stats, rows, failures, header)
     print(f"wrote {summary}")
     print(f"wrote {stats}")
-    return 0
+    return 1 if failures or not rows else 0
 
 
 if __name__ == "__main__":
