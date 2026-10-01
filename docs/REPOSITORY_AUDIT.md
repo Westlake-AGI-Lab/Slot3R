@@ -4,7 +4,7 @@ Source revision: `b94b525b3627ca72165417c0406db7d95fea6fc8`.
 
 ## Implemented
 
-- Canonical table entrypoints now live under `eval/pointcloud`, `eval/pose` and
+- Canonical table entrypoints now live under `eval/mv_recon`, `eval/pose` and
   `eval/depth`. Old Point3R launchers and experiment-machine scripts are archived
   separately with their provenance. The five checksummed Slot3R variant files
   are unchanged; the AutoDL follow-up restores their missing fused RoPE dependency.
@@ -30,7 +30,7 @@ Source revision: `b94b525b3627ca72165417c0406db7d95fea6fc8`.
 - Replaced the inherited Point3R landing README with Slot3R setup/evaluation
   instructions. Historical material and original licenses remain available.
 
-## Checks performed
+## Checks performed before point-cloud entrypoint unification
 
 - Eleven unittest cases (all passed on AutoDL), including 24 model/dataset shell dispatch
   combinations, dataset layouts, KITTI frame pairing, failure propagation,
@@ -81,6 +81,41 @@ environment, not a validated install lock for every task. Full per-scene values,
 source hashes and settings are in
 [`validation/nrgbd_kf2_len200_20261001.json`](validation/nrgbd_kf2_len200_20261001.json).
 
+## Unified point-cloud entrypoint (2026-10-01)
+
+The six model-by-dataset launchers have been replaced by one
+`eval/mv_recon/launch.py`, selected with `--model` and `--dataset`.
+`data.py` owns the dataset factory and default scene lists;
+`model_registry.py` owns model imports and variant settings; `metrics.py` owns
+the shared point-cloud scoring pipeline. `run.sh` only translates environment
+variables to CLI arguments. The old `eval/pointcloud` entrypoints are removed.
+The generic `--data_root` replaces the dataset-specific `--nrgbd_root` argument.
+Legacy model aliases remain accepted, while result rows use canonical model names.
+
+The Python and shell entrypoints now share the same Sparse640 and q=0.25 defaults.
+Variant settings are cleared before selecting another model. The five recorded
+model source hashes remain unchanged. AST comparison against the preceding main
+revision confirms that the four shared crop/sampling/collection/scoring functions
+and both dataset classes are unchanged. Pose and depth pipelines are untouched.
+
+Fifteen tests pass on AutoDL, including real module/direct-script imports of all
+four shipped model classes and CUDA RoPE parity. Twelve pass locally, with three
+dependency-dependent checks skipped. The real-import test covers a collision
+found during the first smoke attempt: naming the registry `models.py` shadowed
+CroCo's `models` package when launching a script directly. The final registry
+name is `model_registry.py`.
+
+All six real GPU smoke runs passed: Core, VPC-M and VPC-A on NeuralRGBD
+`thin_geometry` and 7Scenes `heads/seq-01`, each with `kf=2`, 20 frames and the
+settings above. Every run returned exit code 0 with finite Acc/Comp/NC/FPS and
+produced only metrics/logs, with no visualization exports. The tested CUDA
+extension was reused from the preceding successful source build after checking
+source equality with line endings normalized. Source hashes, settings and
+per-run metrics are recorded in
+[`validation/unified_pointcloud_smoke_20261001.json`](validation/unified_pointcloud_smoke_20261001.json).
+These short runs verify the new routing and execution; they do not establish
+full-table numerical reproduction or meaningful benchmark FPS.
+
 ## AutoDL verification still required
 
 1. Install and record exact working dependency/CUDA versions; the inherited
@@ -97,8 +132,10 @@ source hashes and settings are in
    legacy loaders still rely on the original preprocessing/alignment convention.
 5. Run full table settings only after smoke tests; compare finite metrics,
    scene/frame counts, OOM handling, FPS protocol and output artifacts against
-   experiment records. Only the Core NeuralRGBD setting above has been run;
-   the pose/depth, other model variants, and full paper table settings remain pending.
+   experiment records. The previous Core NeuralRGBD 200-frame run and the six
+   unified-entrypoint smoke runs above have completed. Pose/depth GPU validation,
+   full-sequence VPC-M/VPC-A results, external baseline adapters and full paper
+   table settings remain pending.
 
 Legacy training/fine-tuning documentation is explicitly marked unsupported for
 this Slot3R release. Old experiment scripts are archival evidence, not portable

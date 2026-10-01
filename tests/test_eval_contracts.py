@@ -1,15 +1,20 @@
 """CPU-only checks for evaluation wiring; these do not claim numerical reproduction."""
 import argparse
 import ast
+import contextlib
 import hashlib
 import importlib.util
+import io
 import os
 from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 BASH = os.environ.get("BASH_BIN") or shutil.which("bash")
@@ -27,10 +32,113 @@ def functions(path, names, namespace=None):
 
 
 class ProtocolTests(unittest.TestCase):
+    @unittest.skipUnless(importlib.util.find_spec("torch"), "PyTorch required for real import checks")
+    def test_unified_entrypoints_and_backbone_imports(self):
+        env = dict(os.environ)
+        env["PYTHONPATH"] = os.pathsep.join(map(str, (ROOT, ROOT / "src/croco", ROOT / "src")))
+        commands = [
+            [sys.executable, "-m", "eval.mv_recon.launch", "--help"],
+            [sys.executable, "eval/mv_recon/launch.py", "--help"],
+            [sys.executable, "-c", (
+                "import sys, runpy, importlib; "
+                "sys.path.insert(0, 'eval/mv_recon'); "
+                "ns = runpy.run_path('eval/mv_recon/launch.py'); "
+                "[getattr(importlib.import_module(m), 'Point3R') "
+                "for m in ns['MODEL_MODULES'].values()]; "
+                "import models.blocks"
+            )],
+        ]
+        for command in commands:
+            result = subprocess.run(command, cwd=ROOT, env=env, text=True,
+                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=90)
+            self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_unified_cli_selects_model_dataset_and_defaults(self):
+        def literal(path, name):
+            tree = ast.parse((ROOT / path).read_text())
+            return next(ast.literal_eval(n.value) for n in tree.body if isinstance(n, ast.Assign)
+                        and any(isinstance(t, ast.Name) and t.id == name for t in n.targets))
+        modules = literal("eval/mv_recon/model_registry.py", "MODEL_MODULES")
+        aliases = literal("eval/mv_recon/model_registry.py", "MODEL_ALIASES")
+        defaults = literal("eval/mv_recon/data.py", "DEFAULT_SCENES")
+        parse = functions("eval/mv_recon/launch.py", {"parse_args"}, {
+            "os": os, "__file__": str(ROOT / "eval/mv_recon/launch.py"),
+            "MODELS": tuple(modules) + ("ghost", "cut3r", "ttt3r"),
+            "MODEL_MODULES": modules, "DEFAULT_SCENES": defaults,
+            "canonical_model": lambda value: aliases.get(value, value),
+        })["parse_args"]
+        for model in ("core", "vpc_m", "vpc_a", "point3r"):
+            self.assertTrue((ROOT / "src" / (modules[model].replace(".", "/") + ".py")).is_file())
+            for dataset, count in (("nrgbd", 9), ("7scenes", 18)):
+                args = parse(["--model", model, "--dataset", dataset,
+                              "--weights", "weights.pth", "--data_root", "data root"])
+                self.assertEqual((args.model, args.dataset, len(args.scenes)), (model, dataset, count))
+                self.assertEqual(args.sparse_max_tokens, 640)
+        args = parse(["--model", "ours_rayma", "--weights", "weights.pth", "--data_root", ".",
+                      "--scenes", "room", "--max_frames", "200"])
+        self.assertEqual((args.model, args.scenes, args.max_frames), ("vpc_a", ["room"], 200))
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            parse(["--weights", "weights.pth", "--data_root", ".", "--kf_every", "0"])
+
+    def test_model_profiles_and_switching_do_not_leak_variant_settings(self):
+        source = (ROOT / "eval/mv_recon/model_registry.py").read_text()
+        assignments = {"MODEL_MODULES", "MODEL_ALIASES", "RAY_SETTINGS", "VARIANT_SETTINGS"}
+        nodes = [n for n in ast.parse(source).body if isinstance(n, ast.Assign)
+                 and any(isinstance(t, ast.Name) and t.id in assignments for t in n.targets)]
+        ns = {"os": os}
+        exec(compile(ast.Module(body=nodes, type_ignores=[]), "profiles", "exec"), ns)
+        ns = functions("eval/mv_recon/model_registry.py",
+                       {"canonical_model", "clear_point3r_env", "configure_model"}, ns)
+        args = SimpleNamespace(model="vpc_a", kway_slots=8, theta_bins=16, phi_bins=8,
+                               rho_bins=32, sparse_max_tokens=640, sparse_global_anchors=128,
+                               sparse_neighbor_range=1, encode_chunk_size=100, drop_quantile=0.25)
+        with patch.dict(os.environ, {}, clear=True):
+            for model, interval in (("vpc_a", "1"), ("vpc_m", "4"), ("core", None)):
+                args.model = model
+                ns["configure_model"](args)
+                self.assertEqual(os.environ["POINT3R_SPARSE_MAX_TOKENS"], "640")
+                self.assertEqual(os.environ["POINT3R_CGMC_DROP_QUANTILE"], "0.25")
+                self.assertEqual(os.environ.get("POINT3R_RAY_BANK_UPDATE_EVERY"), interval)
+                if model == "vpc_a":
+                    self.assertEqual(os.environ["POINT3R_V106_POSE_INPUT_WEIGHT"], "0.15")
+                else:
+                    self.assertNotIn("POINT3R_V106_POSE_INPUT_WEIGHT", os.environ)
+            args.model = "point3r"
+            ns["configure_model"](args)
+            self.assertNotIn("POINT3R_SPARSE_READOUT", os.environ)
+        self.assertEqual([ns["canonical_model"](x) for x in ("ours", "ours_ray", "ours_rayma")],
+                         ["core", "vpc_m", "vpc_a"])
+
+    def test_dataset_factory_pairs_available_frames_and_separates_protocols(self):
+        class Dataset:
+            def __init__(self, **kwargs):
+                self.kwargs = kwargs
+        build = functions("eval/mv_recon/data.py", {"build_dataset"},
+                          {"NRGBD": Dataset, "SevenScenes": Dataset})["build_dataset"]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for folder in ("images", "depth"):
+                (root / "room" / folder).mkdir(parents=True)
+            for i in range(8):
+                (root / "room/images" / f"img{i}.png").touch()
+                if i != 3:
+                    (root / "room/depth" / f"depth{i}.png").touch()
+            args = SimpleNamespace(dataset="nrgbd", data_root=tmp, size=512, kf_every=2)
+            dataset = build(args, "room")
+            self.assertEqual(dataset.tuple_list, ["room 0 2 5 7"])
+            self.assertEqual(dataset.kwargs["ROOT"], tmp)
+            args.dataset = "7scenes"
+            dataset = build(args, "chess/seq-03")
+            self.assertEqual(dataset.kwargs["test_id"], "chess")
+            self.assertEqual(dataset.kwargs["seq_id"], "seq-03")
+            self.assertEqual(dataset.kwargs["kf_every"], 2)
+            with self.assertRaises(ValueError):
+                build(args, "chess")
+
     @unittest.skipUnless(importlib.util.find_spec("numpy"), "NumPy required for point sampling test")
     def test_pointcloud_sampling_preserves_correspondences(self):
         import numpy as np
-        sample = functions("eval/pointcloud/pointcloud_metric_clean.py",
+        sample = functions("eval/mv_recon/metrics.py",
                            {"subsample_correspondences"}, {"np": np})["subsample_correspondences"]
         pred = np.arange(300).reshape(100, 3)
         gt, color = pred + 1000, pred + 2000
@@ -129,7 +237,7 @@ class LauncherTests(unittest.TestCase):
                    "vpc_m": "point3r_kway_frame_sparse_q35_confselect_rayaware_v82e_balanced_predecoder_pose",
                    "vpc_a": "point3r_kway_frame_sparse_q35_confselect_rayaware_v106_fresh_bank_pose"}
         for model, module in modules.items():
-            for task, datasets in {"pointcloud": ("7scenes", "nrgbd"),
+            for task, datasets in {"mv_recon": ("7scenes", "nrgbd"),
                                    "pose": ("scannet", "tum", "sintel"),
                                    "depth": ("bonn", "scannet", "kitti")}.items():
                 for dataset in datasets:
@@ -142,9 +250,13 @@ class LauncherTests(unittest.TestCase):
                             script = script[1] + ":" + script[2:]
                         self.assertTrue(Path(script).is_file(), script)
                         self.assertIn("/fixture/data root", args)
-                        self.assertIn("TOKENS=640", result.stdout)
-                        if task != "pointcloud":
+                        if task != "mv_recon":
+                            self.assertIn("TOKENS=640", result.stdout)
                             self.assertIn("MODULE=dust3r." + module, result.stdout)
+                        if task == "mv_recon":
+                            self.assertEqual(Path(script).name, "launch.py")
+                            self.assertEqual(args[args.index("--model") + 1], model)
+                            self.assertEqual(args[args.index("--dataset") + 1], dataset)
                         if task == "pose" and dataset == "tum":
                             self.assertEqual(args[args.index("--dataset") + 1], "tum")
                         if task == "depth" and dataset != "kitti":
@@ -152,7 +264,7 @@ class LauncherTests(unittest.TestCase):
                             self.assertEqual(args[args.index("--align") + 1], "sequence_scale_shift")
 
     def test_failure_exit_code_and_existing_output_guard(self):
-        result = self.run_launcher("pointcloud", "nrgbd", FAKE_EXIT="7")
+        result = self.run_launcher("mv_recon", "nrgbd", FAKE_EXIT="7")
         self.assertEqual(result.returncode, 7, result.stderr)
         (self.root / "out/stale_metric.txt").touch()
         result = self.run_launcher("pose", "sintel")

@@ -25,10 +25,28 @@ basenames or official `..._image_<frame>_image_<camera>` versus
 
 ## Point cloud: main and long-sequence tables
 
+All model/dataset combinations use `eval/mv_recon/launch.py`. Dataset loading is
+selected in `data.py`, model variants in `model_registry.py`, and the shared numerical
+pipeline in `metrics.py`. The old `eval/pointcloud/launch_ours_*` files are removed.
+The model configuration is set in Python, so the module entrypoint and shell
+wrapper use the same settings. For example:
+
+```bash
+python -m eval.mv_recon.launch --model core --dataset nrgbd \
+  --data_root /path/to/neural_rgbd --weights /path/to/point3r_512.pth \
+  --kf_every 2 --max_frames 200 --output_dir outputs/core_nrgbd_200
+```
+
+Use `--model vpc_m` / `vpc_a` or `--dataset 7scenes` with its root. Default scene
+lists live in `data.py`; `--scenes` overrides them. The shell wrapper below accepts
+the same model/dataset names via environment variables. `point3r` is also
+available as a baseline. Existing external GHOST/CUT3R/TTT3R adapters remain
+available through the Python CLI with their explicit repository/weight arguments.
+
 ```bash
 MODEL=core DATASET=nrgbd DATA_ROOT=/path/to/neural_rgbd \
 WEIGHTS=/path/to/point3r_512.pth KF_EVERY=2 MAX_FRAMES=300 \
-bash eval/pointcloud/run.sh
+bash eval/mv_recon/run.sh
 ```
 
 Repeat `MAX_FRAMES=300,400,500` separately for the main table. Use `DATASET=7scenes`
@@ -99,7 +117,7 @@ Start with one real prepared scene for each task, for example:
 ```bash
 MODEL=core DATASET=nrgbd SCENES=breakfast_room MAX_FRAMES=10 KF_EVERY=2 \
 DATA_ROOT=/path/to/neural_rgbd WEIGHTS=/path/to/point3r_512.pth \
-OUTPUT_DIR=outputs/smoke/core_cloud bash eval/pointcloud/run.sh
+OUTPUT_DIR=outputs/smoke/core_cloud bash eval/mv_recon/run.sh
 
 MODEL=vpc_m DATASET=sintel SCENES=alley_2 \
 DATA_ROOT=/path/to/sintel/training WEIGHTS=/path/to/point3r_512.pth \

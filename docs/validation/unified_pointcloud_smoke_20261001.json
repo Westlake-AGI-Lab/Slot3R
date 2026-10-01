@@ -1,0 +1,174 @@
+{
+  "date": "2026-10-01",
+  "purpose": "Unified point-cloud entrypoint smoke validation; not full paper-table reproduction",
+  "baseline_revision": "9a8a3c9d40831d721658e5d102cfa0e91b63cd42",
+  "source_sha256_lf": {
+    "eval/mv_recon/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "eval/mv_recon/base.py": "a5d99e4c8659458b75172b6448d20aa7f4ec1dc7a03272d9ec660a76a9d30e24",
+    "eval/mv_recon/criterion.py": "d8d11dc93886e0dedf1c561f3ea23914702abf2fa1953f2ad31a028e59fb8485",
+    "eval/mv_recon/data.py": "b7dcc78f8eb72a1abb38574487eb627303c7545f08d706b762a005695f61471e",
+    "eval/mv_recon/utils.py": "19c832dce471873b0f9abbf6dbd33c43b6d025edbd35e16a635e98a326b8217f",
+    "eval/mv_recon/launch.py": "75f63a3c087815d4652a6917000ba299c4d8fa146e127b15a1b04bfcb2898d8a",
+    "eval/mv_recon/metrics.py": "8d7f67190d4f460562edb2f7ac23c4f937c640eeb75d2e0acd69aee46ee898d5",
+    "eval/mv_recon/model_registry.py": "13ac85099256d73c8827729b3a12e8aaeaae93f7d71c17dfc2447b1a1d72628e",
+    "eval/mv_recon/run.sh": "b0e260bb5ff6dca202ef1af465e631b52fdc779f04c107b86f2c333ff7bcf5f0"
+  },
+  "environment": {
+    "python": "3.11.15",
+    "torch": "2.5.1",
+    "cuda": "12.1",
+    "gpu": "NVIDIA GeForce RTX 4090",
+    "numpy": "2.4.6",
+    "open3d": "0.19.0"
+  },
+  "protocol": {
+    "kf_every": 2,
+    "max_frames": 20,
+    "size": 512,
+    "max_points": 999999,
+    "seed": 0,
+    "slots": 8,
+    "sparse_max_tokens": 640,
+    "anchors": 128,
+    "drop_quantile": 0.25
+  },
+  "unittest": {
+    "total": 15,
+    "passed": 15,
+    "skipped": 0
+  },
+  "results": [
+    {
+      "model": "core",
+      "dataset": "nrgbd",
+      "exit": "0",
+      "scene": "thin_geometry",
+      "metrics": {
+        "orig_len": 198.0,
+        "frames": 20.0,
+        "Acc": 0.060275,
+        "Comp": 0.01211,
+        "NC1": 0.714497,
+        "NC2": 0.682352,
+        "NC": 0.698424,
+        "FPS": 12.4878,
+        "Time": 1.6016,
+        "Peak": 4.0047,
+        "Acc_med": 0.026557,
+        "Comp_med": 0.004515,
+        "NC_med": 0.82701
+      }
+    },
+    {
+      "model": "core",
+      "dataset": "7scenes",
+      "exit": "0",
+      "scene": "heads/seq-01",
+      "metrics": {
+        "orig_len": 500.0,
+        "frames": 20.0,
+        "Acc": 0.019705,
+        "Comp": 0.00586,
+        "NC1": 0.648048,
+        "NC2": 0.610106,
+        "NC": 0.629077,
+        "FPS": 15.5155,
+        "Time": 1.289,
+        "Peak": 4.0047,
+        "Acc_med": 0.008481,
+        "Comp_med": 0.002417,
+        "NC_med": 0.702535
+      }
+    },
+    {
+      "model": "vpc_m",
+      "dataset": "nrgbd",
+      "exit": "0",
+      "scene": "thin_geometry",
+      "metrics": {
+        "orig_len": 198.0,
+        "frames": 20.0,
+        "Acc": 0.060248,
+        "Comp": 0.0121,
+        "NC1": 0.712908,
+        "NC2": 0.681735,
+        "NC": 0.697322,
+        "FPS": 13.7778,
+        "Time": 1.4516,
+        "Peak": 4.5614,
+        "Acc_med": 0.026567,
+        "Comp_med": 0.0045,
+        "NC_med": 0.825096
+      }
+    },
+    {
+      "model": "vpc_m",
+      "dataset": "7scenes",
+      "exit": "0",
+      "scene": "heads/seq-01",
+      "metrics": {
+        "orig_len": 500.0,
+        "frames": 20.0,
+        "Acc": 0.019702,
+        "Comp": 0.005864,
+        "NC1": 0.648359,
+        "NC2": 0.610317,
+        "NC": 0.629338,
+        "FPS": 13.3992,
+        "Time": 1.4926,
+        "Peak": 4.5601,
+        "Acc_med": 0.008484,
+        "Comp_med": 0.002423,
+        "NC_med": 0.702945
+      }
+    },
+    {
+      "model": "vpc_a",
+      "dataset": "nrgbd",
+      "exit": "0",
+      "scene": "thin_geometry",
+      "metrics": {
+        "orig_len": 198.0,
+        "frames": 20.0,
+        "Acc": 0.060117,
+        "Comp": 0.012099,
+        "NC1": 0.711492,
+        "NC2": 0.686337,
+        "NC": 0.698915,
+        "FPS": 12.5412,
+        "Time": 1.5947,
+        "Peak": 4.5794,
+        "Acc_med": 0.026357,
+        "Comp_med": 0.004597,
+        "NC_med": 0.826297
+      }
+    },
+    {
+      "model": "vpc_a",
+      "dataset": "7scenes",
+      "exit": "0",
+      "scene": "heads/seq-01",
+      "metrics": {
+        "orig_len": 500.0,
+        "frames": 20.0,
+        "Acc": 0.019681,
+        "Comp": 0.005793,
+        "NC1": 0.648226,
+        "NC2": 0.610082,
+        "NC": 0.629154,
+        "FPS": 12.3263,
+        "Time": 1.6226,
+        "Peak": 4.5766,
+        "Acc_med": 0.008414,
+        "Comp_med": 0.002387,
+        "NC_med": 0.702911
+      }
+    }
+  ],
+  "visual_exports": [],
+  "limitations": [
+    "One 20-frame sequence per dataset/model; full table settings not run.",
+    "External GHOST/CUT3R/TTT3R adapters not exercised.",
+    "FPS is a short-sequence smoke measurement, not benchmark evidence."
+  ]
+}

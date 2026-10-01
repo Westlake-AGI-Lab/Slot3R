@@ -28,7 +28,8 @@ All maintained entrypoints are under `eval/`:
 
 ```text
 eval/
-  pointcloud/run.sh   # 7Scenes / NeuralRGBD: Acc, Comp, NC, FPS
+  mv_recon/launch.py # one entrypoint: select --model and --dataset
+  mv_recon/run.sh    # 7Scenes / NeuralRGBD: Acc, Comp, NC, FPS
   pose/run.sh         # ScanNet / Sintel / TUM-Dynamic: ATE, RPE
   depth/run.sh        # Bonn / ScanNet / KITTI: depth metrics
   common_env.sh       # model configuration shared by pose and depth
@@ -39,7 +40,7 @@ Example point-cloud run (paths are placeholders):
 ```bash
 MODEL=core DATASET=nrgbd DATA_ROOT=/path/to/neural_rgbd \
 WEIGHTS=/path/to/point3r_512.pth KF_EVERY=2 MAX_FRAMES=300 \
-bash eval/pointcloud/run.sh
+bash eval/mv_recon/run.sh
 ```
 
 See [evaluation instructions](docs/eval.md) for every table, required dataset
@@ -58,8 +59,10 @@ sha256sum -c MODEL_CHECKSUMS.sha256
 ```
 
 Core NeuralRGBD evaluation (`kf=2`, up to 200 frames, nine scenes) has passed a
-real RTX 4090 run. Aggregate metrics are close to the historical reference;
-per-scene exact reproduction and the other task/model settings remain unverified.
+real RTX 4090 run. Aggregate metrics are close to the historical reference.
+The unified point-cloud entrypoint also passes six 20-frame GPU smoke runs
+(Core/VPC-M/VPC-A on 7Scenes/NeuralRGBD) and all 15 automated checks.
+Full-table numerical reproduction and pose/depth GPU validation remain pending.
 See the [cleanup audit](docs/REPOSITORY_AUDIT.md). The legacy training scripts are inherited
 from Point3R and are not a supported Slot3R training workflow in this release.
 

@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import cv2
 import json
 import numpy as np
@@ -520,3 +521,60 @@ class NRGBD(BaseStereoViewDataset):
             )
 
         return views
+
+
+DEFAULT_SCENES = {
+    "nrgbd": ("breakfast_room", "complete_kitchen", "green_room", "grey_white_room",
+              "kitchen", "morning_apartment", "staircase", "thin_geometry", "whiteroom"),
+    "7scenes": ("chess/seq-03", "chess/seq-05", "fire/seq-03", "fire/seq-04", "heads/seq-01",
+                "office/seq-02", "office/seq-06", "office/seq-07", "office/seq-09",
+                "pumpkin/seq-01", "pumpkin/seq-07", "redkitchen/seq-03", "redkitchen/seq-04",
+                "redkitchen/seq-06", "redkitchen/seq-12", "redkitchen/seq-14", "stairs/seq-01", "stairs/seq-04"),
+}
+
+
+def build_dataset(args, scene: str):
+    """Use only frame IDs having both RGB and depth files."""
+    resolution = (512, 384) if args.size == 512 else 224
+    if args.dataset == "7scenes":
+        if "/" not in scene:
+            raise ValueError(f"expected scene/seq-NN, got {scene!r}")
+        scene_name, seq_id = scene.split("/", 1)
+        dataset = SevenScenes(
+            split="test", ROOT=args.data_root, resolution=resolution, num_seq=1,
+            test_id=scene_name, seq_id=seq_id, full_video=True, kf_every=args.kf_every,
+        )
+        print(f"[7SCENES_SEQUENCE] scene={scene_name} seq={seq_id} kf={args.kf_every}", flush=True)
+        return dataset
+    if args.dataset != "nrgbd":
+        raise ValueError(f"unsupported dataset={args.dataset}")
+    dataset = NRGBD(
+        split="test",
+        ROOT=args.data_root,
+        resolution=resolution,
+        num_seq=1,
+        test_id=scene,
+        full_video=True,
+        kf_every=args.kf_every,
+    )
+    image_dir = Path(args.data_root) / scene / "images"
+    depth_dir = Path(args.data_root) / scene / "depth"
+    frame_ids = []
+    for image_path in image_dir.glob("img*.png"):
+        stem = image_path.stem[3:]
+        if stem.isdigit() and (depth_dir / f"depth{stem}.png").is_file():
+            frame_ids.append(int(stem))
+    frame_ids.sort()
+    if not frame_ids:
+        raise RuntimeError(f"no paired RGB/depth frames for scene={scene}")
+    step = min(args.kf_every, max(len(frame_ids) // 2, 1))
+    sampled = frame_ids[::step]
+    dataset.tuple_list = [scene + " " + " ".join(map(str, sampled))]
+    dataset.scene_list = [scene]
+    dataset.num_seq = 1
+    print(
+        f"[NRGBD_EXISTING_FRAMES] scene={scene} raw={len(frame_ids)} "
+        f"kept={len(sampled)} step={step} first={sampled[:3]} last={sampled[-3:]}",
+        flush=True,
+    )
+    return dataset
