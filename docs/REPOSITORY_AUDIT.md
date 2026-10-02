@@ -116,6 +116,50 @@ per-run metrics are recorded in
 These short runs verify the new routing and execution; they do not establish
 full-table numerical reproduction or meaningful benchmark FPS.
 
+## Unified pose/depth entrypoints (2026-10-01)
+
+Pose and depth now each have one `launch.py` and a thin `run.sh` wrapper.
+Dataset selection is a CLI argument; there are no executable `sintel.py`,
+`scannet_tum.py`, `bonn.py`, `scannet.py` or `kitti.py` launchers. Each task groups
+input protocols, inference and scoring in `data.py`, `inference.py`, and
+`metrics.py`. The per-scene pose subprocess backend is also removed.
+Model names/settings are centralized in `eval/model_config.py` and the shared
+pose/depth scene loop/result writer lives in `eval/runtime.py`.
+
+The maintained pose/depth model choices are Core, VPC-M, VPC-A and Point3R.
+Unused external-model and historical experiment switches from the old standalone
+scripts are retired; point-cloud external-model adapters remain available.
+Pose/depth results now consistently use `config.json`, `scenes.json`,
+`summary.tsv`, `result.json`, `run.log` and `stats_only.log`. Failed scenes or
+non-finite scores make the process fail and prevent publishing an aggregate.
+Pose still emits the underlying per-scene evo metric text for inspection.
+
+Protocol preservation checks:
+
+- The 23 Core, 55 VPC-M and 56 VPC-A environment settings exactly match the former
+  shell configuration, excluding the two obsolete module-selection variables.
+- AST comparisons verify 12 unchanged numerical/inference/configuration helpers:
+  indoor depth resizing, depth extraction, alignment and scoring; KITTI scoring;
+  pose input construction, camera recovery and output decoding; evo result parsing;
+  and the point-cloud model configuration helpers moved into the common module.
+- Sintel retains RPE RMSE; ScanNet/TUM retain RPE mean. Both values remain in the
+  output. ScanNet/TUM also retain their per-scene deterministic seed/model lifetime.
+- Bonn/ScanNet keep their /5000 and /1000 depth decoding, no-crop resizing, 5 m
+  valid-depth cap and frame-mean/scene-mean aggregation. KITTI keeps /256 decoding,
+  cubic resize, original alignment helper and valid-pixel-weighted aggregation.
+- All five recorded model source hashes are unchanged. All 22 tests pass in the
+  AutoDL environment; 17 pass locally with five dependency-dependent checks skipped.
+
+No prepared Sintel, ScanNet, TUM, Bonn or KITTI benchmark data was found on 13795.
+Format fixtures used for GPU execution checks are six 7Scenes frames repackaged
+into the five expected input layouts. These are explicitly **not benchmark data**;
+their scores must not be used as paper results or evidence of reproduction.
+All 18 fixture-based GPU executions passed (three Slot3R variants times six
+task/dataset routes), six frames each, with finite results and no visualization
+exports. Status, environment and source hashes are recorded in
+[`validation/unified_pose_depth_20261001.json`](validation/unified_pose_depth_20261001.json);
+fixture scores are deliberately excluded from that record.
+
 ## AutoDL verification still required
 
 1. Install and record exact working dependency/CUDA versions; the inherited
@@ -133,7 +177,8 @@ full-table numerical reproduction or meaningful benchmark FPS.
 5. Run full table settings only after smoke tests; compare finite metrics,
    scene/frame counts, OOM handling, FPS protocol and output artifacts against
    experiment records. The previous Core NeuralRGBD 200-frame run and the six
-   unified-entrypoint smoke runs above have completed. Pose/depth GPU validation,
+   unified-entrypoint point-cloud smoke runs above have completed, as have the
+   18 pose/depth format-fixture executions. Pose/depth benchmark-data GPU validation,
    full-sequence VPC-M/VPC-A results, external baseline adapters and full paper
    table settings remain pending.
 

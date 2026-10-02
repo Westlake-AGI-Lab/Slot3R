@@ -1,0 +1,180 @@
+{
+  "date": "2026-10-01",
+  "baseline_revision": "5aabffb1b9e5519e2b61af31935e411beb92668f",
+  "purpose": "Unified pose/depth entrypoint execution checks, NOT benchmark validation",
+  "fixture": {
+    "source": "7Scenes heads/seq-01",
+    "frame_indices": [
+      0,
+      10,
+      20,
+      30,
+      40,
+      50
+    ],
+    "description": "RGB/depth/pose inputs repackaged as Sintel, ScanNet, TUM, Bonn and KITTI layouts; not actual target-benchmark data"
+  },
+  "environment": {
+    "python": "3.11.15",
+    "torch": "2.5.1",
+    "numpy": "2.4.6",
+    "cuda": "12.1",
+    "gpu": "NVIDIA GeForce RTX 4090"
+  },
+  "unittest": {
+    "total": 22,
+    "passed": 22,
+    "skipped": 0
+  },
+  "execution_checks": [
+    {
+      "model": "core",
+      "task": "pose",
+      "dataset": "sintel",
+      "exit": "0",
+      "frames": 6
+    },
+    {
+      "model": "core",
+      "task": "pose",
+      "dataset": "scannet",
+      "exit": "0",
+      "frames": 6
+    },
+    {
+      "model": "core",
+      "task": "pose",
+      "dataset": "tum",
+      "exit": "0",
+      "frames": 6
+    },
+    {
+      "model": "core",
+      "task": "depth",
+      "dataset": "bonn",
+      "exit": "0",
+      "frames": 6
+    },
+    {
+      "model": "core",
+      "task": "depth",
+      "dataset": "scannet",
+      "exit": "0",
+      "frames": 6
+    },
+    {
+      "model": "core",
+      "task": "depth",
+      "dataset": "kitti",
+      "exit": "0",
+      "frames": 6
+    },
+    {
+      "model": "vpc_m",
+      "task": "pose",
+      "dataset": "sintel",
+      "exit": "0",
+      "frames": 6
+    },
+    {
+      "model": "vpc_m",
+      "task": "pose",
+      "dataset": "scannet",
+      "exit": "0",
+      "frames": 6
+    },
+    {
+      "model": "vpc_m",
+      "task": "pose",
+      "dataset": "tum",
+      "exit": "0",
+      "frames": 6
+    },
+    {
+      "model": "vpc_m",
+      "task": "depth",
+      "dataset": "bonn",
+      "exit": "0",
+      "frames": 6
+    },
+    {
+      "model": "vpc_m",
+      "task": "depth",
+      "dataset": "scannet",
+      "exit": "0",
+      "frames": 6
+    },
+    {
+      "model": "vpc_m",
+      "task": "depth",
+      "dataset": "kitti",
+      "exit": "0",
+      "frames": 6
+    },
+    {
+      "model": "vpc_a",
+      "task": "pose",
+      "dataset": "sintel",
+      "exit": "0",
+      "frames": 6
+    },
+    {
+      "model": "vpc_a",
+      "task": "pose",
+      "dataset": "scannet",
+      "exit": "0",
+      "frames": 6
+    },
+    {
+      "model": "vpc_a",
+      "task": "pose",
+      "dataset": "tum",
+      "exit": "0",
+      "frames": 6
+    },
+    {
+      "model": "vpc_a",
+      "task": "depth",
+      "dataset": "bonn",
+      "exit": "0",
+      "frames": 6
+    },
+    {
+      "model": "vpc_a",
+      "task": "depth",
+      "dataset": "scannet",
+      "exit": "0",
+      "frames": 6
+    },
+    {
+      "model": "vpc_a",
+      "task": "depth",
+      "dataset": "kitti",
+      "exit": "0",
+      "frames": 6
+    }
+  ],
+  "visual_exports": [],
+  "source_sha256_lf": {
+    "eval/pose/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "eval/pose/data.py": "953836cda676888510daa78589a4900e283e7018d235717d4cbd85fb3f696efc",
+    "eval/pose/inference.py": "344de3a7e20d70d51db73ea27f627981ef22dc166c9e5a1aa64bc2555535c9ce",
+    "eval/pose/launch.py": "909879a1e0934f418e0e0cdf69a116b38f992b39ddce12205fba8ebc8ca715c7",
+    "eval/pose/metrics.py": "5e104221c3e448abdaca3704fdadd84270bdbedb519a8fe50ca5160a46b0be50",
+    "eval/depth/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "eval/depth/data.py": "fbd0cbbcedbe97dc65f2cf0c72fb99c66ac967583fc0d8ab16d3775c94436824",
+    "eval/depth/inference.py": "4466e1d5944f365e637bb488b138145bda3869eae6b4087c62657f0d2768b9d5",
+    "eval/depth/launch.py": "1885b0833cc8a2842a79763579e4cdfa8ca90e881a23fe2833f198fe30f055e7",
+    "eval/depth/metrics.py": "2c20e7d7fa13f07264a9e8a0a69567de96575e54a55660e03adf240d809e22f1",
+    "eval/model_config.py": "dd06a41eac705aa990d9455874debff257a17c42a16d8ada64dafb35936d4d99",
+    "eval/runtime.py": "48275f42cc3afc0b4e883be7a963e0266e8290ce9d760d8de2293fb7374ca2cc",
+    "eval/mv_recon/model_registry.py": "c80803189e8d5c15fb984b5b43523dbb4e2ed172cb59910cf4101d0c9635623a",
+    "eval/pose/run.sh": "37d2d22486ef8a5640869b1d6c02b3766f7726296234388db3dd4f49e4eba9c3",
+    "eval/depth/run.sh": "5e7586b9a1676dc88397db67eac0c6f95afc470aec578cb57f2dd6e4f74448b3"
+  },
+  "limitations": [
+    "Prepared target benchmark datasets were not found on AutoDL 13795.",
+    "Fixture scores deliberately omitted; they must not be used as paper results.",
+    "Full sequence and benchmark numerical reproduction remain unverified."
+  ]
+}

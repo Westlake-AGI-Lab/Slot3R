@@ -28,12 +28,16 @@ All maintained entrypoints are under `eval/`:
 
 ```text
 eval/
-  mv_recon/launch.py # one entrypoint: select --model and --dataset
-  mv_recon/run.sh    # 7Scenes / NeuralRGBD: Acc, Comp, NC, FPS
-  pose/run.sh         # ScanNet / Sintel / TUM-Dynamic: ATE, RPE
-  depth/run.sh        # Bonn / ScanNet / KITTI: depth metrics
-  common_env.sh       # model configuration shared by pose and depth
+  mv_recon/launch.py  # 7Scenes / NeuralRGBD: Acc, Comp, NC, FPS
+  pose/launch.py      # ScanNet / Sintel / TUM-Dynamic: ATE, RPE
+  depth/launch.py     # Bonn / ScanNet / KITTI: depth metrics
+  model_config.py    # shared model names and task configurations
+  runtime.py         # shared pose/depth scene loop and result writer
 ```
+
+Each task has one `launch.py` and an optional `run.sh` wrapper. Select datasets
+and models with `--dataset` and `--model`; dataset loading and numerical metrics
+live in `data.py` and `metrics.py`, rather than separate dataset executables.
 
 Example point-cloud run (paths are placeholders):
 
@@ -61,8 +65,11 @@ sha256sum -c MODEL_CHECKSUMS.sha256
 Core NeuralRGBD evaluation (`kf=2`, up to 200 frames, nine scenes) has passed a
 real RTX 4090 run. Aggregate metrics are close to the historical reference.
 The unified point-cloud entrypoint also passes six 20-frame GPU smoke runs
-(Core/VPC-M/VPC-A on 7Scenes/NeuralRGBD) and all 15 automated checks.
-Full-table numerical reproduction and pose/depth GPU validation remain pending.
+(Core/VPC-M/VPC-A on 7Scenes/NeuralRGBD). All 22 automated checks pass on AutoDL,
+including pose/depth CLI routing, alignment and aggregation checks.
+The 18 pose/depth GPU format-fixture checks also pass; these are not target
+benchmark results. Full-table reproduction and pose/depth benchmark-data
+validation remain pending.
 See the [cleanup audit](docs/REPOSITORY_AUDIT.md). The legacy training scripts are inherited
 from Point3R and are not a supported Slot3R training workflow in this release.
 

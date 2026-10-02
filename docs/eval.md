@@ -5,6 +5,13 @@ Use `MODEL=core`, `vpc_m`, or `vpc_a`. Legacy aliases `ours`, `ours_ray`, and
 PLY, point-cloud NPY, depth PNG/GIF, comparison images, or trajectory plots.
 Numerical arrays stay in memory. Outputs are metric TSV/JSON/TXT and logs.
 
+Every task uses one `launch.py`, selected with `--dataset` and `--model`.
+`run.sh` is only an environment-variable convenience wrapper. Pose and depth
+support `core`, `vpc_m`, `vpc_a`, and `point3r`; their configuration is applied
+in Python through `eval/model_config.py`, so direct CLI runs use the same model
+settings as shell runs. Each task's `data.py` handles input formats and
+`metrics.py` handles scoring. There are no dataset-specific executables.
+
 ## Required dataset layouts
 
 | Task | `DATASET` | `DATA_ROOT` layout |
@@ -66,6 +73,12 @@ runs used an unseeded sample, so their last digits can vary.
 ## Camera pose
 
 ```bash
+python -m eval.pose.launch --model core --dataset sintel \
+  --data_root /path/to/sintel/training --weights /path/to/point3r_512.pth \
+  --output_dir outputs/pose/core_sintel
+```
+
+```bash
 MODEL=core DATASET=sintel DATA_ROOT=/path/to/sintel/training \
 WEIGHTS=/path/to/point3r_512.pth OUTPUT_DIR=outputs/pose/core_sintel \
 bash eval/pose/run.sh
@@ -78,11 +91,20 @@ ScanNet scene manifest and the TUM benchmark subset must be confirmed on the
 experiment machine and supplied through `SCENES` for a full table run. Invalid
 or missing GT is a failure, not a zero-valued or silently excluded result.
 
-Outputs: per-scene metric text and summary/logs. Pose uses the original
-Sim(3)-aligned evo ATE/RPE implementation. No external FeedForward_Eval repo,
-shared-dataset symlink rewriting, or trajectory image export is needed.
+Pose uses the original Sim(3)-aligned evo implementation and writes per-scene
+metric text. The inherited reporting conventions remain explicit: Sintel uses
+RPE RMSE; ScanNet/TUM use RPE mean. Both statistics are retained in results.
+`--pose_eval_stride` controls frame subsampling; `--max_frames` limits a smoke
+test. Full evaluation defaults to stride 1 without a frame cap. No external
+FeedForward_Eval repo or per-scene backend subprocess is needed.
 
 ## Video depth: both table settings
+
+```bash
+python -m eval.depth.launch --model core --dataset bonn \
+  --data_root /path/to/bonn --weights /path/to/point3r_512.pth \
+  --align sequence_scale_shift --output_dir outputs/depth/core_bonn
+```
 
 Bonn and ScanNet, per-sequence scale-and-shift alignment:
 
@@ -105,10 +127,18 @@ OUTPUT_DIR=outputs/depth/core_kitti_sequence bash eval/depth/run.sh
 ```
 
 For metric-scale KITTI use `ALIGN=metric` and a fresh output directory. The KITTI
-runner now computes metrics directly in memory using the original depth helper,
-including cubic resize and valid-pixel-weighted aggregation. It no longer stops
-after writing predictions. Results are `scenes.json` and `result_scale&shift.json`
-or `result_metric.json`. Bonn/ScanNet write TSV summaries and text logs.
+runner computes metrics directly in memory using the original depth helper,
+including cubic resize and valid-pixel-weighted aggregation. Bonn/ScanNet retain
+frame-mean metrics followed by scene means. KITTI uses /256 GT decoding and the
+original positive-GT mask without an upper depth cap; indoor `--max_depth` and
+crop overrides are rejected for KITTI. Bonn/ScanNet default to a 5 m cap.
+
+Pose/depth share the same output structure: `config.json`, `summary.tsv`,
+`scenes.json`, `run.log`, `stats_only.log`, and `result.json`. `result.json` is
+written only when all selected scenes succeed with finite metrics. Failed runs
+retain diagnostic per-scene results but publish no aggregate. Older KITTI
+`result_scale&shift.json` / `result_metric.json` consumers should now read
+`result.json` and its accompanying `config.json` alignment setting.
 
 ## AutoDL smoke test
 

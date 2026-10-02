@@ -58,8 +58,8 @@ class ProtocolTests(unittest.TestCase):
             tree = ast.parse((ROOT / path).read_text())
             return next(ast.literal_eval(n.value) for n in tree.body if isinstance(n, ast.Assign)
                         and any(isinstance(t, ast.Name) and t.id == name for t in n.targets))
-        modules = literal("eval/mv_recon/model_registry.py", "MODEL_MODULES")
-        aliases = literal("eval/mv_recon/model_registry.py", "MODEL_ALIASES")
+        modules = literal("eval/model_config.py", "MODEL_MODULES")
+        aliases = literal("eval/model_config.py", "MODEL_ALIASES")
         defaults = literal("eval/mv_recon/data.py", "DEFAULT_SCENES")
         parse = functions("eval/mv_recon/launch.py", {"parse_args"}, {
             "os": os, "__file__": str(ROOT / "eval/mv_recon/launch.py"),
@@ -81,13 +81,13 @@ class ProtocolTests(unittest.TestCase):
             parse(["--weights", "weights.pth", "--data_root", ".", "--kf_every", "0"])
 
     def test_model_profiles_and_switching_do_not_leak_variant_settings(self):
-        source = (ROOT / "eval/mv_recon/model_registry.py").read_text()
+        source = (ROOT / "eval/model_config.py").read_text()
         assignments = {"MODEL_MODULES", "MODEL_ALIASES", "RAY_SETTINGS", "VARIANT_SETTINGS"}
         nodes = [n for n in ast.parse(source).body if isinstance(n, ast.Assign)
                  and any(isinstance(t, ast.Name) and t.id in assignments for t in n.targets)]
         ns = {"os": os}
         exec(compile(ast.Module(body=nodes, type_ignores=[]), "profiles", "exec"), ns)
-        ns = functions("eval/mv_recon/model_registry.py",
+        ns = functions("eval/model_config.py",
                        {"canonical_model", "clear_point3r_env", "configure_model"}, ns)
         args = SimpleNamespace(model="vpc_a", kway_slots=8, theta_bins=16, phi_bins=8,
                                rho_bins=32, sparse_max_tokens=640, sparse_global_anchors=128,
@@ -168,7 +168,7 @@ class ProtocolTests(unittest.TestCase):
             self.assertEqual(hashlib.sha256((ROOT / name).read_bytes()).hexdigest(), expected, name)
 
     def test_kitti_pairs_identity_and_missing_frames(self):
-        pair = functions("eval/depth/kitti.py", {"scene_pairs"})["scene_pairs"]
+        pair = functions("eval/depth/data.py", {"scene_pairs"})["scene_pairs"]
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             rgb = root / "image_gathered/scene"
@@ -185,7 +185,7 @@ class ProtocolTests(unittest.TestCase):
                 pair(root, "scene")
 
     def test_pose_dataset_layouts(self):
-        get_files = functions("eval/pose/scannet_tum.py", {"scannet_files"})["scannet_files"]
+        get_files = functions("eval/pose/data.py", {"scannet_files"})["scannet_files"]
         with tempfile.TemporaryDirectory() as tmp:
             scene = Path(tmp) / "test"
             for dataset, folder, pose in (("scannet", "color_90", "pose_90.txt"),
@@ -250,18 +250,9 @@ class LauncherTests(unittest.TestCase):
                             script = script[1] + ":" + script[2:]
                         self.assertTrue(Path(script).is_file(), script)
                         self.assertIn("/fixture/data root", args)
-                        if task != "mv_recon":
-                            self.assertIn("TOKENS=640", result.stdout)
-                            self.assertIn("MODULE=dust3r." + module, result.stdout)
-                        if task == "mv_recon":
-                            self.assertEqual(Path(script).name, "launch.py")
-                            self.assertEqual(args[args.index("--model") + 1], model)
-                            self.assertEqual(args[args.index("--dataset") + 1], dataset)
-                        if task == "pose" and dataset == "tum":
-                            self.assertEqual(args[args.index("--dataset") + 1], "tum")
-                        if task == "depth" and dataset != "kitti":
-                            self.assertEqual(args[args.index("--max_depth") + 1], "5")
-                            self.assertEqual(args[args.index("--align") + 1], "sequence_scale_shift")
+                        self.assertEqual(Path(script).name, "launch.py")
+                        self.assertEqual(args[args.index("--model") + 1], model)
+                        self.assertEqual(args[args.index("--dataset") + 1], dataset)
 
     def test_failure_exit_code_and_existing_output_guard(self):
         result = self.run_launcher("mv_recon", "nrgbd", FAKE_EXIT="7")

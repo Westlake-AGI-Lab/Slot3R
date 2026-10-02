@@ -8,69 +8,8 @@ import time
 from pathlib import Path
 
 import torch
-
-MODEL_MODULES = {
-    "core": "dust3r.point3r_kway_frame_sparse_q35_confselect",
-    "vpc_m": "dust3r.point3r_kway_frame_sparse_q35_confselect_rayaware_v82e_balanced_predecoder_pose",
-    "vpc_a": "dust3r.point3r_kway_frame_sparse_q35_confselect_rayaware_v106_fresh_bank_pose",
-    "point3r": "dust3r.point3r",
-}
-MODEL_ALIASES = {"ours": "core", "ours_ray": "vpc_m", "ours_rayma": "vpc_a"}
-MODELS = tuple(MODEL_MODULES) + ("ghost", "cut3r", "ttt3r")
-RAY_SETTINGS = {
-    "POINT3R_RAYAWARE_UPDATE": "1",
-    "POINT3R_RAY_DUAL_BANK": "1",
-    "POINT3R_RAY_PAPER_UPDATE": "1",
-    "POINT3R_RAY_KWAY_DIVERSE_UPDATE": "0",
-    "POINT3R_RAY_HYBRID_READOUT": "1",
-    "POINT3R_RAY_POSE_INPUT_ONLY": "1",
-    "POINT3R_RAY_POSE_POST_DECODER_ONLY": "0",
-    "POINT3R_RAY_POSE_ONLY_ENSEMBLE": "0",
-    "POINT3R_RAY_POSE_INPUT_TOKENS": "128",
-    "POINT3R_RAY_POSE_INPUT_TEMPERATURE": "0.10",
-}
-VARIANT_SETTINGS = {
-    "core": {"POINT3R_RAYAWARE_UPDATE": "0"},
-    "vpc_m": {**RAY_SETTINGS, "POINT3R_RAY_BANK_UPDATE_EVERY": "4",
-              "POINT3R_RAY_POSE_INPUT_MAX_WEIGHT": "0.025"},
-    "vpc_a": {**RAY_SETTINGS, "POINT3R_RAY_BANK_UPDATE_EVERY": "1",
-              "POINT3R_V106_RAY_BANK_UPDATE_EVERY": "1",
-              "POINT3R_V106_POSE_INPUT_WEIGHT": "0.15"},
-}
-
-
-def canonical_model(name):
-    return MODEL_ALIASES.get(name, name)
-
-
-def configure_model(args):
-    """One configuration path for both direct Python and shell entrypoints."""
-    clear_point3r_env()
-    for settings in VARIANT_SETTINGS.values():
-        for key in settings:
-            os.environ.pop(key, None)
-    if args.model not in VARIANT_SETTINGS:
-        return
-    os.environ.update({
-        "POINT3R_MEMORY_UPDATE_MODE": "ordered_kway",
-        "POINT3R_MEMORY_IMPL": "tensor",
-        "POINT3R_ORDERED_UPDATE_IMPL": "tensor",
-        "POINT3R_KWAY_NUM_SLOTS": str(args.kway_slots),
-        "POINT3R_ORDERED_WAY_POLICY": "appearance",
-        "POINT3R_ORDERED_THETA_BINS": str(args.theta_bins),
-        "POINT3R_ORDERED_PHI_BINS": str(args.phi_bins),
-        "POINT3R_ORDERED_RHO_BINS": str(args.rho_bins),
-        "POINT3R_SPARSE_READOUT": "1",
-        "POINT3R_SPARSE_MODE": "max",
-        "POINT3R_SPARSE_MAX_TOKENS": str(args.sparse_max_tokens),
-        "POINT3R_SPARSE_GLOBAL_ANCHORS": str(args.sparse_global_anchors),
-        "POINT3R_SPARSE_NEIGHBOR_RANGE": str(args.sparse_neighbor_range),
-        "POINT3R_ENCODE_CHUNK_SIZE": str(args.encode_chunk_size),
-        "POINT3R_CGMC_DROP_QUANTILE": str(args.drop_quantile),
-        "POINT3R_CGMC_WEIGHTED_MERGE": "1",
-    })
-    os.environ.setdefault("POINT3R_CONFSELECT_STATS", "0")
-    os.environ.update(VARIANT_SETTINGS[args.model])
+from eval.model_config import (MODEL_MODULES, MODEL_ALIASES, MODELS, RAY_SETTINGS,
+                               VARIANT_SETTINGS, canonical_model, configure_model, clear_point3r_env)
 
 
 def add_path(path: str | Path, *, front: bool = True) -> None:
@@ -109,39 +48,6 @@ def add_src_repo_paths(repo: str | Path) -> None:
     add_path(repo)
     add_path(repo / "src")
     add_path(repo / "src" / "croco")
-
-
-def clear_point3r_env() -> None:
-    for key in (
-        "POINT3R_MEMORY_UPDATE_MODE",
-        "POINT3R_ORDERED_UPDATE_IMPL",
-        "POINT3R_KWAY_NUM_SLOTS",
-        "POINT3R_ORDERED_WAY_POLICY",
-        "POINT3R_ORDERED_THETA_BINS",
-        "POINT3R_ORDERED_PHI_BINS",
-        "POINT3R_ORDERED_RHO_BINS",
-        "POINT3R_ORDERED_APP_THRESHOLD",
-        "POINT3R_ORDERED_BUDGET_EVICT",
-        "POINT3R_SPARSE_READOUT",
-        "POINT3R_SPARSE_MODE",
-        "POINT3R_SPARSE_MAX_TOKENS",
-        "POINT3R_SPARSE_GLOBAL_ANCHORS",
-        "POINT3R_SPARSE_NEIGHBOR_RANGE",
-        "POINT3R_SPARSE_RECENT_TOKENS",
-        "POINT3R_SPARSE_RECENT_FRAMES",
-        "POINT3R_FIXED_MEMORY_TOKENS",
-        "POINT3R_FIXED_MEMORY_MODE",
-        "POINT3R_GEOANCHOR",
-        "POINT3R_GEOANCHOR_STRIDE",
-        "POINT3R_GEOANCHOR_H",
-        "POINT3R_GEOANCHOR_FRAMES",
-        "POINT3R_GEOANCHOR_MIN_GAP",
-        "POINT3R_GEOANCHOR_BUCKETS_PER_KF",
-        "POINT3R_GEOANCHOR_SLOTS_PER_KF",
-        "POINT3R_GEOANCHOR_MAX_KFS",
-        "POINT3R_PROFILE",
-    ):
-        os.environ.pop(key, None)
 
 
 def move_batch_to_device(batch, device: str):
