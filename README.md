@@ -4,6 +4,8 @@ Private release candidate for the training-free Slot3R retrofit of Point3R.
 The pretrained backbone stays frozen. This checkout focuses on the numerical
 experiments in the paper; evaluation does not export point-cloud visualizations,
 PLY files, prediction NPY files, depth images, or trajectory plots.
+For RGB-folder inference and colored point clouds, use the separate
+[PLY and camera-trajectory export command](docs/export.md).
 
 ## Models
 
@@ -21,6 +23,18 @@ and `MODEL_CHECKSUMS.sha256`; the evaluated model files are unchanged.
 Use Linux, Python 3.11 and a CUDA-enabled PyTorch environment. Follow
 [installation](docs/installation.md) for dependencies and checkpoint setup.
 Datasets and checkpoints are not included.
+
+## Reconstruct an RGB folder
+
+```bash
+python tools/export_ply.py --image_dir /path/to/images \
+  --weights /path/to/point3r_512.pth --output_dir outputs/my_scene \
+  --model core --kf_every 2 --max_frames 200 --save_trajectory
+```
+
+Writes `cloud.ply` and, with `--save_trajectory`, predicted camera poses,
+trajectory/frustum PLY layers and a MeshLab project. `core`, `vpc_m`, `vpc_a`
+and `point3r` are supported. See [export options](docs/export.md).
 
 ## Evaluate
 
