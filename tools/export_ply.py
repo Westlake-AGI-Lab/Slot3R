@@ -62,6 +62,26 @@ def prepare_output(directory):
     directory.mkdir(parents=True, exist_ok=True)
 
 
+def load_export_model(module, model_name, weights, device):
+    if model_name != "point3r":
+        return module.Point3R.from_pretrained(weights).to(device).eval()
+    # The retained baseline loader only accepts Namespace checkpoint metadata.
+    # Accept the dict form too, without changing the checksummed model source.
+    import torch
+    checkpoint = torch.load(weights, map_location="cpu", weights_only=False)
+    metadata = checkpoint["args"]
+    spec = metadata["model"] if isinstance(metadata, dict) else metadata.model
+    spec = spec.replace("ManyAR_PatchEmbed", "PatchEmbedDust3R")
+    if "landscape_only" not in spec:
+        spec = spec[:-2] + ", landscape_only=False))"
+    else:
+        spec = spec.replace(" ", "").replace("landscape_only=True", "landscape_only=False")
+    # Checkpoints contain executable model definitions, as in the upstream loader.
+    model = eval(spec, vars(module))
+    print(model.load_state_dict(checkpoint["model"], strict=False), flush=True)
+    return model.to(device).eval()
+
+
 def collect_cloud(views, predictions):
     import numpy as np
     if not predictions or len(views) != len(predictions):
@@ -170,7 +190,7 @@ def main(argv=None):
     configure_model(args)
     torch.manual_seed(args.seed)
     module = importlib.import_module(MODEL_MODULES[args.model])
-    model = module.Point3R.from_pretrained(args.weights).to(device).eval()
+    model = load_export_model(module, args.model, args.weights, device)
     views = load_images([str(p) for p in files], size=args.size, verbose=False)
     if len(views) != len(files):
         raise ValueError("Image loader skipped selected input frames")

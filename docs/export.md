@@ -17,6 +17,8 @@ Select `core`, `vpc_m`, `vpc_a`, or the `point3r` baseline. Historical aliases
 `ours`, `ours_ray`, and `ours_rayma` are accepted. The Slot3R variants reuse
 `eval/model_config.py`'s reconstruction configuration; model sources are not
 patched or copied. Evaluation under `eval/` still produces numerical results only.
+The export-only Point3R loader accepts both dictionary and Namespace checkpoint
+metadata, including the retained `point3r_512.pth` checkpoint.
 
 ## Input ordering and length
 
@@ -75,8 +77,16 @@ Pure NumPy export tests exercise point/color correspondence, binary PLY payloads
 frame selection and camera/frustum transforms. A real CUDA/checkpoint inference
 run is additionally required to validate a particular deployment.
 
-Local validation (2026-10-03): the 27-test suite passes with four existing
-PyTorch/CUDA-dependent tests skipped, including five new export tests. The
-retained AutoDL endpoint was unreachable, so this exporter has not yet completed
-a real checkpoint/GPU smoke run. This does not change the evaluation validation
-already recorded in the repository.
+AutoDL validation (2026-10-03): all 28 tests pass without skips on an RTX 4090,
+Python 3.11.15, PyTorch 2.5.1 / CUDA 12.1, with the repository's RoPE extension
+built in that environment. Six export tests include dictionary/Namespace
+checkpoint-loading coverage. Each of `core`, `vpc_m`, `vpc_a`, and `point3r`
+successfully reconstructed 20 green_room RGB frames with the retained
+`point3r_512.pth` checkpoint, image size 512, stride 2, a 100,000-point cap, and
+`--save_trajectory`; all checkpoint keys matched.
+
+Open3D 0.19 independently read each colored cloud. Additional checks verified
+finite coordinates/colors, 20 valid rigid camera-to-world matrices, trajectory
+centers matching those matrices, 19 connecting edges, frustum edge indexes,
+CSV/frame counts, MeshLab layer references, and model-source hashes. These are
+short-sequence functional checks, not full-scene quality or FPS benchmarks.

@@ -5,7 +5,9 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
+from unittest.mock import Mock, patch
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,6 +21,25 @@ except ImportError:
 
 
 class ExportCLITests(unittest.TestCase):
+    def test_baseline_loads_dict_and_namespace_checkpoint_metadata(self):
+        for as_dict in (False, True):
+            for landscape in ("", ", landscape_only=True"):
+                with self.subTest(as_dict=as_dict, landscape=landscape):
+                    spec = "Point3R(Point3RConfig(patch_embed_cls='ManyAR_PatchEmbed'" + landscape + "))"
+                    metadata = {"model": spec} if as_dict else SimpleNamespace(model=spec)
+                    state = {"weight": object()}
+                    torch = SimpleNamespace(load=Mock(return_value={"args": metadata, "model": state}))
+                    model = Mock()
+                    model.to.return_value = model
+                    model.eval.return_value = model
+                    module = SimpleNamespace(Point3R=Mock(return_value=model), Point3RConfig=Mock())
+                    with patch.dict(sys.modules, {"torch": torch}):
+                        actual = export.load_export_model(module, "point3r", "checkpoint.pth", "cuda")
+                    self.assertIs(actual, model)
+                    module.Point3RConfig.assert_called_once_with(patch_embed_cls="PatchEmbedDust3R", landscape_only=False)
+                    model.load_state_dict.assert_called_once_with(state, strict=False)
+                    torch.load.assert_called_once_with("checkpoint.pth", map_location="cpu", weights_only=False)
+
     def test_help_runs_outside_repository_without_model_imports(self):
         with tempfile.TemporaryDirectory() as tmp:
             p = subprocess.run([sys.executable, str(ROOT / "tools/export_ply.py"), "--help"],
