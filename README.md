@@ -26,10 +26,14 @@ Datasets and checkpoints are not included.
 
 ## Reconstruct an RGB folder
 
+The demo uses Core on the teaser's NeuralRGBD `morning_apartment` scene:
+
 ```bash
-python tools/export_ply.py --image_dir /path/to/images \
-  --weights /path/to/point3r_512.pth --output_dir outputs/my_scene \
-  --model core --kf_every 2 --max_frames 200 --save_trajectory
+python tools/export_ply.py \
+  --image_dir /path/to/neural_rgbd/morning_apartment/images \
+  --weights /path/to/point3r_512.pth --output_dir outputs/core_morning_apartment \
+  --model core --kf_every 2 --max_frames 200 \
+  --conf_quantile 0.25 --max_save_points 3000000
 ```
 
 Writes `cloud.ply` and, with `--save_trajectory`, predicted camera poses,

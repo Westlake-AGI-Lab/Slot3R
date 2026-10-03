@@ -3,15 +3,20 @@
 `tools/export_ply.py` is a visualization/inference entrypoint. It does not need
 depth, camera intrinsics, ground-truth poses, or a benchmark dataset layout.
 Install the normal [runtime and Point3R checkpoint](installation.md) first.
-Run from the repository root:
+The demo uses Core on the teaser's NeuralRGBD `morning_apartment` scene.
+Set the image and checkpoint paths to your local copies and run from the repository root:
 
 ```bash
 python tools/export_ply.py \
-  --image_dir /path/to/scene/images \
+  --image_dir /path/to/neural_rgbd/morning_apartment/images \
   --weights /path/to/point3r_512.pth \
-  --output_dir outputs/my_scene_core \
-  --model core --kf_every 2 --max_frames 200 --save_trajectory
+  --output_dir outputs/core_morning_apartment \
+  --model core --kf_every 2 --max_frames 200 \
+  --conf_quantile 0.25 --max_save_points 3000000
 ```
+
+This exports the point cloud only, using the teaser's 200-frame, stride-2 input
+selection. Add `--save_trajectory` when camera poses and trajectory layers are needed.
 
 Select `core`, `vpc_m`, `vpc_a`, or the `point3r` baseline. Historical aliases
 `ours`, `ours_ray`, and `ours_rayma` are accepted. The Slot3R variants reuse
@@ -90,3 +95,8 @@ finite coordinates/colors, 20 valid rigid camera-to-world matrices, trajectory
 centers matching those matrices, 19 connecting edges, frustum edge indexes,
 CSV/frame counts, MeshLab layer references, and model-source hashes. These are
 short-sequence functional checks, not full-scene quality or FPS benchmarks.
+
+The Core Morning apartment demo above also completed on the same GPU: 200 input
+frames (`img0.png` through `img398.png`, stride 2), 3,000,000 colored points,
+and a 45,000,181-byte `cloud.ply`. Open3D readback confirmed the expected point
+count and finite XYZ/RGB values; no trajectory files were requested for this demo.
