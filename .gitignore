@@ -1,0 +1,93 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Editors and operating systems
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.ipynb_checkpoints/
+
+# Logs and experiment output
+*.log
+logs/
+log/
+results/
+result/
+outputs/
+output/
+eval_results/
+runs/
+wandb/
+tensorboard/
+
+# Model weights and downloaded artifacts
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+*.onnx
+checkpoints/
+checkpoint/
+ckpt/
+weights/
+pretrained/
+
+# Datasets and caches
+data/
+datasets/
+cache/
+.cache/
+downloads/
+
+# Point clouds, predictions, and trajectory exports
+*.ply
+*.pcd
+*.las
+*.laz
+*.obj
+*.npy
+*.npz
+*.bin
+*.flo
+pointclouds/
+point_clouds/
+predictions/
+preds/
+trajectories/
+trajectory/
+frustums/
+frusta/
+
+# Generated media and archives
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.mp4
+*.avi
+*.mov
+
+# Build/package artifacts
+build/
+dist/
+*.egg-info/
+
+# Local checks and release work
+/tests/
+*.sha256
+*.bundle
+*.patch
+*.bak
+/release-staging/
+/.readme-work/
+/.demo-work/
+/.deploy-work/

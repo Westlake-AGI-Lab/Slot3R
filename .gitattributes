@@ -1,0 +1,17 @@
+* text=auto
+
+*.sh text eol=lf
+*.py text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ipynb text eol=lf
+
+src/dust3r/point3r_kway_frame_sparse_q35_confselect.py -text
+src/dust3r/point3r_kway_frame_sparse_q35_confselect_rayaware_v82e_balanced_predecoder_pose.py -text

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="142" height="40" viewBox="0 0 142 40" role="img" aria-label="Webpage">
+  <title>Webpage</title>
+  <defs>
+    <linearGradient id="surface" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#4e97ff"/>
+      <stop offset="0.32" stop-color="#2d6fe8"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+  <rect x="0.5" y="0.5" width="141" height="39" rx="19.5" fill="url(#surface)" stroke="#4b83ee"/>
+  <circle cx="22" cy="20" r="12" fill="#ffffff" fill-opacity="0.15"/>
+  <g fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="22" cy="20" r="7"/>
+    <path d="M15 20h14M22 13c-4 4-4 10 0 14M22 13c4 4 4 10 0 14"/>
+  </g>
+  <text x="43" y="24.5" fill="#ffffff" font-family="Arial,Helvetica,sans-serif" font-size="13.5" font-weight="600">Webpage</text>
+  <path d="M122 16h6v6m0-6-7 7" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

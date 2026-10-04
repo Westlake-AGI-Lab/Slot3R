@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="116" height="40" viewBox="0 0 116 40" role="img" aria-label="arXiv">
+  <title>arXiv</title>
+  <defs>
+    <linearGradient id="surface" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#f07789"/>
+      <stop offset="0.32" stop-color="#cd3e58"/>
+      <stop offset="1" stop-color="#c9334f"/>
+    </linearGradient>
+  </defs>
+  <rect x="0.5" y="0.5" width="115" height="39" rx="19.5" fill="url(#surface)" stroke="#de5369"/>
+  <circle cx="22" cy="20" r="12" fill="#ffffff" fill-opacity="0.15"/>
+  <g fill="none" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m16 14 12 12m0-12-12 12m8-14-4 16"/>
+  </g>
+  <text x="43" y="24.5" fill="#ffffff" font-family="Arial,Helvetica,sans-serif" font-size="13.5" font-weight="600">arXiv</text>
+  <path d="M96 16h6v6m0-6-7 7" fill="none" stroke="#ffffff" stroke-opacity="0.85" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
