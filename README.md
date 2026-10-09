@@ -20,8 +20,8 @@
 
 <p>
   <a href="https://ashleyxyz.github.io/Slot-3R/"><img src="assets/badges/webpage.svg" alt="Webpage" height="40"></a>&nbsp;
-  <a href="https://github.com/xyzhang-ashley/Slot3R"><img src="assets/badges/arxiv.svg" alt="arXiv" height="40"></a>&nbsp;
-  <a href="https://github.com/xyzhang-ashley/Slot3R"><img src="assets/badges/paper.svg" alt="Paper" height="40"></a>&nbsp;
+  <a href="https://arxiv.org/abs/2610.12282"><img src="assets/badges/arxiv.svg" alt="arXiv" height="40"></a>&nbsp;
+  <a href="https://arxiv.org/pdf/2610.12282"><img src="assets/badges/paper.svg" alt="Paper" height="40"></a>&nbsp;
   <a href="#demo"><img src="assets/badges/demo.svg" alt="Demo" height="40"></a>
 </p>
 
@@ -160,7 +160,10 @@ If you find Slot3R useful, please cite our work:
   title  = {Slot3R: Set-Associative Spatial Memory for Streaming 3D Reconstruction},
   author = {Xiyuan Zhang and Yanming Yang and Kaiyuan Xu and Ruibo Li and Chi Zhang},
   year   = {2026},
-  note   = {Manuscript}
+  eprint = {2610.12282},
+  archivePrefix = {arXiv},
+  primaryClass = {cs.CV},
+  url    = {https://arxiv.org/abs/2610.12282}
 }
 ```
 
